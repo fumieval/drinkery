@@ -19,6 +19,7 @@ consTap s r = Tap $ extend (\w -> pure (s, Tap w)) (unTap r)
 
 orderTap :: (Monoid r) => r -> Tap m r s -> Tap m r s
 orderTap r t = Tap $ \r' -> unTap t $! mappend r r'
+{-# INLINE orderTap #-}
 
 -- | Monadic producer
 newtype Barman r s m a = Barman { unBarman :: (a -> Tap m r s) -> Tap m r s }

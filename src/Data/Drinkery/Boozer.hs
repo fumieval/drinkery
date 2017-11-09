@@ -41,11 +41,13 @@ hoistBoozer t = go where
 
 instance Functor m => Applicative (Boozer r s m) where
   pure = Pure
+  {-# INLINE pure #-}
   (<*>) = ap
   (*>) = (>>)
 
 instance Functor m => Monad (Boozer r s m) where
   return = Pure
+  {-# INLINE return #-}
   m0 >>= k = go m0 where
     go (Pure a) = k a
     go (Drink m) = Drink $ go . m
@@ -90,9 +92,10 @@ runPatron m = unPatron m Pure
 
 instance Functor (Patron r s m) where
   fmap f m = Patron $ \cont -> unPatron m $ cont . f
+  {-# INLINE fmap #-}
 
 instance Applicative (Patron r s m) where
-  pure = return
+  pure a = Patron $ \cont -> cont a
   {-# INLINE pure #-}
   (<*>) = ap
   {-# INLINE (<*>) #-}
@@ -108,11 +111,8 @@ instance MonadTrans (Patron r s) where
 
 instance MonadDrunk r s (Patron r s m) where
   drink = Patron $ \cont -> Drink cont
-  {-# INLINE drink #-}
   spit s = Patron $ \cont -> Spit s $ cont ()
-  {-# INLINE spit #-}
   call r = Patron $ \cont -> Call r $ cont ()
-  {-# INLINE call #-}
 
 instance MonadReader x m => MonadReader x (Patron r s m) where
   ask = lift ask

@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, BangPatterns, LambdaCase #-}
+{-# LANGUAGE Rank2Types, BangPatterns, LambdaCase, FlexibleContexts #-}
 module Data.Drinkery.Distiller where
 
 import Control.Monad.Trans.Class
@@ -115,9 +115,9 @@ scanning f b0 = consTap b0 $ go b0 where
 
 scanningMaybe :: (Monoid r, Functor m) => (b -> a -> b) -> b -> Distiller r (Maybe a) m r (Maybe b)
 scanningMaybe f b0 = consTap (Just b0) $ go b0 where
-  go b = propagating $ (\case
-    Just a -> let !b' = f b a in (Just b', go b')
-    Nothing -> (Nothing, go b)) <$> drink
+  go b = Tap $ \r -> Patron $ \cont -> Call r $ Drink $ \case
+    Just a -> let !b' = f b a in cont (Just b', go b')
+    Nothing -> cont (Nothing, go b)
 {-# INLINE scanningMaybe #-}
 {-
 -- | Transform a 'Distiller' to operate on a stream of 'Maybe's.
