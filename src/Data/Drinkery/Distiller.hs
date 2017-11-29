@@ -37,13 +37,13 @@ infixl 7 ++$
 infixr 7 $-&
 infixl 8 $$$
 
--- | Connect a tap with a boozer.
+-- | Connect a tap with a patron.
 --
 -- Mnemonic:
 --
 -- * @+@ Left operand is a tap.
 -- * @-@ Returns a triple of the used distiller, leftovers, and the result.
--- * @&@ Right operand is a boozer.
+-- * @&@ Right operand is a patron.
 (+-&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m (Tap m r s, a)
 t +-& p = boozeOn id (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] t (runPatron p)
 {-# INLINE (+-&) #-}
@@ -70,24 +70,24 @@ t +-& p = boozeOn id (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) memp
 ($$$) = distillWith lift
 {-# INLINE ($$$) #-}
 
--- | Attach a distiller to a boozer.
+-- | Attach a distiller to a patron.
 --
 -- Mnemonic:
 --
 -- * @$@ Left operand is a distiller.
 -- * @-@ Returns a triple of the used distiller, leftovers, and the result.
--- * @&@ Right operand is a boozer.
+-- * @&@ Right operand is a patron.
 ($-&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a
   -> Patron p q m (Distiller p q m r s, a)
 d $-& b = boozeOn lift (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
 {-# INLINE ($-&) #-}
 
--- | Connect a tap with a boozer and discard the leftovers.
+-- | Connect a tap with a patron and discard the leftovers.
 (+&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m a
 t +& b = fmap snd $ t +-& b
 {-# INLINE (+&) #-}
 
--- | Attach nd discard the leftovers.
+-- | Like '$-&' but discard the used distiller.
 ($&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a -> Patron p q m a
 t $& b = fmap snd $ t $-& b
 {-# INLINE ($&) #-}
