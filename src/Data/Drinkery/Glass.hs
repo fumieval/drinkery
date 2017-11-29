@@ -44,8 +44,8 @@ sinkNull = drink >>= \t -> unless (null t) sinkNull
 
 runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap m r (f s)
 runBarman m = unBarman m (const digestif)
-{-# INLINE closing #-}
+{-# INLINE runBarman #-}
 
 runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap m r (f s)
 runSommelier m = unSommelier m (consTap . pure) digestif
-{-# INLINE recommended #-}
+{-# INLINE runSommelier #-}
