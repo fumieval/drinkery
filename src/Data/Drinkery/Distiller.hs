@@ -45,7 +45,7 @@ infixl 8 $$$
 -- * @-@ Returns a triple of the used distiller, leftovers, and the result.
 -- * @&@ Right operand is a patron.
 (+-&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m (Tap m r s, a)
-t +-& p = boozeOn id (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] t (runPatron p)
+t +-& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) mempty [] t (runPatron p)
 {-# INLINE (+-&) #-}
 
 -- | Attach a distiller to a tap.
@@ -83,8 +83,11 @@ d $-& b = boozeOn lift (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) me
 {-# INLINE ($-&) #-}
 
 -- | Connect a tap with a patron and discard the leftovers.
-(+&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m a
-t +& b = fmap snd $ t +-& b
+(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap m r s -> Patron r s m a -> m a
+t +& b = do
+  (t', a) <- t +-& b
+  _ <- unTap t' closeRequest
+  return a
 {-# INLINE (+&) #-}
 
 -- | Like '$-&' but discard the used distiller.

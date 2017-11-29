@@ -62,3 +62,13 @@ instance MonadDrunk r s m => MonadDrunk r s (ContT x m) where
   drink = lift drink
   spit = lift . spit
   call = lift . call
+
+class CloseRequest a where
+  -- | A value representing a close request
+  closeRequest :: a
+
+instance CloseRequest () where
+  closeRequest = ()
+
+instance CloseRequest a => CloseRequest [a] where
+  closeRequest = [closeRequest]
