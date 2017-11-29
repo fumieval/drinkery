@@ -42,6 +42,10 @@ traverse_ f = go where
 sinkNull :: (Foldable t, MonadDrunk r (t a) m) => m ()
 sinkNull = drink >>= \t -> unless (null t) sinkNull
 
-recommended :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap m r (f s)
-recommended m = unSommelier m (consTap . pure) digestif
+runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap m r (f s)
+runBarman m = unBarman m (const digestif)
+{-# INLINE closing #-}
+
+runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap m r (f s)
+runSommelier m = unSommelier m (consTap . pure) digestif
 {-# INLINE recommended #-}
