@@ -3,7 +3,6 @@ module Data.Drinkery.Glass where
 
 import Control.Applicative
 import Control.Monad
-import Data.Drinkery.Boozer
 import Data.Drinkery.Class
 import Data.Drinkery.Tap
 import Data.Foldable as F

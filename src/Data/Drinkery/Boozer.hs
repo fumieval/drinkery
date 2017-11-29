@@ -2,8 +2,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Data.Drinkery.Boozer where
 
-import Control.Applicative
-import Control.Monad
 import Control.Monad.Trans.Class
 import Control.Monad.IO.Class
 import Control.Monad

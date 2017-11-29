@@ -6,7 +6,6 @@ import Control.Comonad
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Data.Drinkery.Boozer
 import Data.Drinkery.Class
 
 -- | Non-monadic, endless producer
