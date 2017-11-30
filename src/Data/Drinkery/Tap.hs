@@ -1,4 +1,14 @@
 {-# LANGUAGE Rank2Types, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
+-----------------------------------------------------------------------
+--
+-- Module      :  Data.Drinkery.Tap
+-- Copyright   :  (c) Fumiaki Kinoshita 2017
+-- License     :  BSD3
+--
+-- Maintainer  :  Fumiaki Kinoshita <fumiexcel@gmail.com>
+--
+-- Stream producers
+-----------------------------------------------------------------------
 module Data.Drinkery.Tap where
 
 import Control.Applicative
@@ -8,7 +18,8 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Data.Drinkery.Class
 
--- | Non-monadic, endless producer
+-- | @'Tap' m r s@ is a non-monadic, endless producer of @s@. It takes a request
+-- @r@.
 newtype Tap m r s = Tap { unTap :: r -> m (s, Tap m r s) }
 
 -- | Prepend a new element, delaying requests.
@@ -16,9 +27,15 @@ consTap :: (Monoid r, Applicative m) => s -> Tap m r s -> Tap m r s
 consTap s r = Tap $ extend (\w -> pure (s, Tap w)) (unTap r)
 {-# INLINE consTap #-}
 
+-- | Send a request to a 'Tap'.
 orderTap :: (Monoid r) => r -> Tap m r s -> Tap m r s
 orderTap r t = Tap $ \r' -> unTap t $! mappend r r'
 {-# INLINE orderTap #-}
+
+-- | Involve an action.
+makeTap :: (Monoid r, Monad m) => m (Tap m r s) -> Tap m r s
+makeTap m = Tap $ \r -> m >>= \t -> unTap t r
+{-# INLINE makeTap #-}
 
 -- | Monadic producer
 newtype Barman r s m a = Barman { unBarman :: (a -> Tap m r s) -> Tap m r s }
@@ -50,7 +67,7 @@ topup s = Barman $ \cont -> consTap s (cont ())
 accept :: Monoid r => Barman r s m r
 accept = Barman $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 
--- | Create a 'Tap' from a 'Barman'.
+-- | Create a infinite 'Tap' from a 'Barman'.
 --
 -- @Barman r s (Boozer p q m) x -> Distiller p q m r s@
 --
@@ -82,8 +99,10 @@ instance MonadTrans (Sommelier r) where
 instance MonadIO m => MonadIO (Sommelier r m) where
   liftIO m = Sommelier $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
+-- | Take all the elements in a 'Foldable' container.
 taste :: Foldable f => f s -> Sommelier r m s
 taste xs = Sommelier $ \c e -> foldr c e xs
 
+-- | Get a request.
 inquire :: Monoid r => Sommelier r m r
 inquire = Sommelier $ \c e -> Tap $ \rs -> unTap (c rs e) mempty

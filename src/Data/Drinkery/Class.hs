@@ -1,5 +1,15 @@
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+-----------------------------------------------------------------------
+--
+-- Module      :  Data.Drinkery.Class
+-- Copyright   :  (c) Fumiaki Kinoshita 2017
+-- License     :  BSD3
+--
+-- Maintainer  :  Fumiaki Kinoshita <fumiexcel@gmail.com>
+--
+-- Basic classes
+-----------------------------------------------------------------------
 module Data.Drinkery.Class where
 
 import Control.Monad.Trans.Class

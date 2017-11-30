@@ -1,4 +1,14 @@
 {-# LANGUAGE Rank2Types, BangPatterns, LambdaCase, FlexibleContexts #-}
+-----------------------------------------------------------------------
+--
+-- Module      :  Data.Drinkery.Distiller
+-- Copyright   :  (c) Fumiaki Kinoshita 2017
+-- License     :  BSD3
+--
+-- Maintainer  :  Fumiaki Kinoshita <fumiexcel@gmail.com>
+--
+-- Stream transducers
+-----------------------------------------------------------------------
 module Data.Drinkery.Distiller where
 
 import Control.Monad.Trans.Class
@@ -20,7 +30,13 @@ boozeOn t cont = go where
   go !r ss b (Pure a) = cont b r ss a
 {-# INLINE boozeOn #-}
 
--- | Stream transducer
+-- | 'Distiller p q m r s' is a stream transducer which has four parameters:
+--
+-- * @p@ request to the upstream
+-- * @q@ input
+-- * @m@ underlying monad
+-- * @r@ request from the downstream
+-- * @s@ output
 type Distiller p q m = Tap (Patron p q m)
 
 distillWith :: (Monoid p, Monad m) => (forall x. n x -> m x) -> Tap m p q -> Distiller p q n r s -> Tap m r s
@@ -59,7 +75,7 @@ t +-& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) me
 (++$) = distillWith id
 {-# INLINE (++$) #-}
 
--- | Connect two distillers.
+-- | Full duplex composition of distillers.
 --
 -- Mnemonic:
 --
@@ -122,15 +138,14 @@ scanningMaybe f b0 = consTap (Just b0) $ go b0 where
     Just a -> let !b' = f b a in cont (Just b', go b')
     Nothing -> cont (Nothing, go b)
 {-# INLINE scanningMaybe #-}
-{-
+
 -- | Transform a 'Distiller' to operate on a stream of 'Maybe's.
 throughMaybe :: (Monoid r, Monad m) => Distiller p q m r s -> Distiller p (Maybe q) m r (Maybe s)
-throughMaybe d = Tap $ \rs -> unPatron (iterBoozer
+throughMaybe d = Tap $ \rs -> iterBoozer
   (\qs (s, d') -> (Just s, throughMaybe d') <$ mapM_ (spit . Just) qs)
   (\cont -> drink >>= maybe (pure end) cont)
   (\p cont -> call p >> cont)
   ((>>=) . lift)
-  (unTap d rs)) (Pure end) Pure
+  $ runPatron $ unTap d rs
   where
     end = (Nothing, throughMaybe d)
--}

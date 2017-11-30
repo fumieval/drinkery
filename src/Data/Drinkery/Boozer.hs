@@ -1,5 +1,15 @@
 {-# LANGUAGE Rank2Types, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, UndecidableInstances #-}
 {-# LANGUAGE DeriveFunctor #-}
+-----------------------------------------------------------------------
+--
+-- Module      :  Data.Drinkery.Boozer
+-- Copyright   :  (c) Fumiaki Kinoshita 2017
+-- License     :  BSD3
+--
+-- Maintainer  :  Fumiaki Kinoshita <fumiexcel@gmail.com>
+--
+-- Basic consumer
+-----------------------------------------------------------------------
 module Data.Drinkery.Boozer where
 
 import Control.Monad.Trans.Class
@@ -9,6 +19,7 @@ import Control.Monad.Reader.Class
 import Control.Monad.State.Class
 import Data.Drinkery.Class
 
+-- | Boozer is the initial encoding of a consumer.
 data Boozer r s m a = Drink (s -> Boozer r s m a)
   | Spit s (Boozer r s m a)
   | Call r (Boozer r s m a)
@@ -16,10 +27,11 @@ data Boozer r s m a = Drink (s -> Boozer r s m a)
   | Pure a
   deriving Functor
 
-iterBoozer :: ([s] -> a -> z)
-  -> ((s -> z) -> z)
-  -> (r -> z -> z)
-  -> (forall x. m x -> (x -> z) -> z)
+-- | Tear down a 'Boozer', maintaining a stack of leftovers.
+iterBoozer :: ([s] -> a -> z) -- ^ return
+  -> ((s -> z) -> z) -- ^ drink
+  -> (r -> z -> z) -- ^ call
+  -> (forall x. m x -> (x -> z) -> z) -- ^ bind
   -> Boozer r s m a -> z
 iterBoozer p d c t = go [] where
   go [] (Drink k) = d (go [] . k)
@@ -80,7 +92,7 @@ instance Functor m => MonadDrunk r s (Boozer r s m) where
   spit s = Spit s (Pure ())
   call r = Call r (Pure ())
 
--- | 'Patron' is a CPS'd 'Boozer' with an 'Alternative' instance.
+-- | 'Patron' is a CPS'd 'Boozer'.
 newtype Patron r s m a = Patron
   { unPatron :: forall x. (a -> Boozer r s m x) -> Boozer r s m x }
 
