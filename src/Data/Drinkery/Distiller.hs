@@ -47,7 +47,7 @@ distillWith trans = go mempty [] where
 {-# INLINE distillWith #-}
 
 infix 6 +&
-infixr 7 $&
+infixr 7 $&&
 infix 6 +-&
 infixl 7 ++$
 infixr 7 $-&
@@ -107,9 +107,9 @@ t +& b = do
 {-# INLINE (+&) #-}
 
 -- | Like '$-&' but discard the used distiller.
-($&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a -> Patron p q m a
-t $& b = fmap snd $ t $-& b
-{-# INLINE ($&) #-}
+($&&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a -> Patron p q m a
+t $&& b = fmap snd $ t $-& b
+{-# INLINE ($&&) #-}
 
 -- | Create a request-preserving distiller.
 propagating :: Functor m => Patron r a m (b, Distiller r a m r b) -> Distiller r a m r b
