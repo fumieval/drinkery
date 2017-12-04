@@ -73,6 +73,13 @@ instance MonadDrunk r s m => MonadDrunk r s (ContT x m) where
   spit = lift . spit
   call = lift . call
 
+-- | Get one element without consuming.
+smell :: MonadDrunk r s m => m s
+smell = do
+  s <- drink
+  spit s
+  return s
+
 class CloseRequest a where
   -- | A value representing a close request
   closeRequest :: a
