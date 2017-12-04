@@ -99,6 +99,11 @@ instance MonadTrans (Sommelier r) where
 instance MonadIO m => MonadIO (Sommelier r m) where
   liftIO m = Sommelier $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
+instance MonadDrunk r s m => MonadDrunk r s (Sommelier p m) where
+  drink = lift drink
+  spit = lift . spit
+  call = lift . call
+
 -- | Take all the elements in a 'Foldable' container.
 taste :: Foldable f => f s -> Sommelier r m s
 taste xs = Sommelier $ \c e -> foldr c e xs
