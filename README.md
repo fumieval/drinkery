@@ -57,7 +57,7 @@ characters of these operators signify the resulting structures.
 
 ## Why drinkery?
 
-drinkery is designed to be fully features and complements other libraries' missing
+drinkery is designed to be fully featured and complements other libraries' missing
 functionalities.
 
 ### pipes
