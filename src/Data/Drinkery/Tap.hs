@@ -9,7 +9,19 @@
 --
 -- Stream producers
 -----------------------------------------------------------------------
-module Data.Drinkery.Tap where
+module Data.Drinkery.Tap (
+  Tap(..)
+  , consTap
+  , orderTap
+  , makeTap
+  , Barman(..)
+  , topup
+  , accept
+  , inexhaustible
+  , Sommelier(..)
+  , taste
+  , inquire
+) where
 
 import Control.Applicative
 import Control.Comonad

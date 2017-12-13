@@ -9,7 +9,26 @@
 --
 -- Stream transducers
 -----------------------------------------------------------------------
-module Data.Drinkery.Distiller where
+module Data.Drinkery.Distiller
+  ( Distiller
+  -- * Special combinators
+  , (+&)
+  , ($&)
+  -- * Attaching a distiller
+  , (++$)
+  , ($$$)
+  , distillWith
+  -- * Patron
+  , (++&)
+  , ($$&)
+  -- * Stock distillers
+  , mapping
+  , traversing
+  , filtering
+  , scanning
+  , scanningMaybe
+  , throughMaybe
+  ) where
 
 import Control.Monad.Trans.Class
 import Data.Drinkery.Tap
@@ -30,7 +49,7 @@ boozeOn t cont = go where
   go !r ss b (Pure a) = cont b r ss a
 {-# INLINE boozeOn #-}
 
--- | 'Distiller p q m r s' is a stream transducer which has four parameters:
+-- | 'Distiller p q m r s' is a stream transducer which has five parameters:
 --
 -- * @p@ request to the upstream
 -- * @q@ input
@@ -47,10 +66,10 @@ distillWith trans = go mempty [] where
 {-# INLINE distillWith #-}
 
 infix 6 +&
-infixr 7 $&&
-infix 6 +-&
+infixr 7 $&
+infix 6 ++&
 infixl 7 ++$
-infixr 7 $-&
+infixr 7 $$&
 infixl 8 $$$
 
 -- | Connect a tap with a patron.
@@ -58,11 +77,11 @@ infixl 8 $$$
 -- Mnemonic:
 --
 -- * @+@ Left operand is a tap.
--- * @-@ Returns a triple of the used distiller, leftovers, and the result.
+-- * @+@ Returns a tap (along with the result).
 -- * @&@ Right operand is a patron.
-(+-&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m (Tap m r s, a)
-t +-& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) mempty [] t (runPatron p)
-{-# INLINE (+-&) #-}
+(++&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m (Tap m r s, a)
+t ++& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) mempty [] t (runPatron p)
+{-# INLINE (++&) #-}
 
 -- | Attach a distiller to a tap.
 --
@@ -91,25 +110,25 @@ t +-& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) me
 -- Mnemonic:
 --
 -- * @$@ Left operand is a distiller.
--- * @-@ Returns a triple of the used distiller, leftovers, and the result.
+-- * @$@ Returns the used distiller.
 -- * @&@ Right operand is a patron.
-($-&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a
+($$&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a
   -> Patron p q m (Distiller p q m r s, a)
-d $-& b = boozeOn lift (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
-{-# INLINE ($-&) #-}
+d $$& b = boozeOn lift (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
+{-# INLINE ($$&) #-}
 
--- | Connect a tap with a patron and discard the leftovers.
+-- | Connect a tap with a patron and close the used tap.
 (+&) :: (Monoid r, CloseRequest r, Monad m) => Tap m r s -> Patron r s m a -> m a
 t +& b = do
-  (t', a) <- t +-& b
+  (t', a) <- t ++& b
   _ <- unTap t' closeRequest
   return a
 {-# INLINE (+&) #-}
 
--- | Like '$-&' but discard the used distiller.
-($&&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a -> Patron p q m a
-t $&& b = fmap snd $ t $-& b
-{-# INLINE ($&&) #-}
+-- | Like '$&&' but discards the used distiller.
+($&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a -> Patron p q m a
+t $& b = fmap snd $ t $$& b
+{-# INLINE ($&) #-}
 
 -- | Create a request-preserving distiller.
 propagating :: Functor m => Patron r a m (b, Distiller r a m r b) -> Distiller r a m r b
