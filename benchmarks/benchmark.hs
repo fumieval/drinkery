@@ -8,7 +8,7 @@ import Data.List
 import Data.Void
 
 drainD :: D.Distiller () (Maybe Int) IO () (Maybe a) -> IO ()
-drainD h = sourceD D.+& h D.$&& D.sinkNull
+drainD h = sourceD D.+& h D.$& D.sinkNull
 
 value :: Int
 value = 10000

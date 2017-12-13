@@ -48,7 +48,7 @@ It is actually a `Tap` where the underlying monad is `Patron`.
 
 There are three composition operators:
 
-* `$&&` Distiller-patron
+* `$&` Distiller-patron
 * `$$$` Distiler-distiller
 * `++$` Tap-distiller
 
