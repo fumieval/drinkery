@@ -17,7 +17,6 @@ module Data.Drinkery.Distiller
   -- * Attaching a distiller
   , (++$)
   , ($$$)
-  , distillWith
   -- * Patron
   , (++&)
   , ($$&)
@@ -28,6 +27,9 @@ module Data.Drinkery.Distiller
   , scanning
   , scanningMaybe
   , throughMaybe
+  -- * Internal
+  , boozeOn
+  , distillWith
   ) where
 
 import Control.Monad.Trans.Class
@@ -36,7 +38,7 @@ import Data.Drinkery.Class
 import Data.Drinkery.Boozer
 
 boozeOn :: (Monoid r, Monad m) => (forall x. n x -> m x)
-  -> (Tap m r s -> r -> [s] -> a -> m z)
+  -> (r -> [s] -> Tap m r s -> a -> m z)
   -> r -> [s] -> Tap m r s
   -> Boozer r s n a
   -> m z
@@ -46,7 +48,7 @@ boozeOn t cont = go where
   go !r ss b (Spit s k) = go r (s : ss) b k
   go !r ss b (Call r' k) = go (mappend r r') ss b k
   go !r ss b (Lift m) = t m >>= go r ss b
-  go !r ss b (Pure a) = cont b r ss a
+  go !r ss b (Pure a) = cont r ss b a
 {-# INLINE boozeOn #-}
 
 -- | 'Distiller p q m r s' is a stream transducer which has five parameters:
@@ -61,7 +63,7 @@ type Distiller p q m = Tap (Patron p q m)
 distillWith :: (Monoid p, Monad m) => (forall x. n x -> m x) -> Tap m p q -> Distiller p q n r s -> Tap m r s
 distillWith trans = go mempty [] where
   go r lo b (Tap m) = Tap $ \rs -> boozeOn trans
-    (\b' r' lo' (s, cont) -> pure (s, go r' lo' b' cont))
+    (\r' lo' b' (s, cont) -> pure (s, go r' lo' b' cont))
     r lo b (runPatron (m rs))
 {-# INLINE distillWith #-}
 
@@ -80,7 +82,7 @@ infixl 8 $$$
 -- * @+@ Returns a tap (along with the result).
 -- * @&@ Right operand is a patron.
 (++&) :: (Monoid r, Monad m) => Tap m r s -> Patron r s m a -> m (Tap m r s, a)
-t ++& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) mempty [] t (runPatron p)
+t ++& p = boozeOn id (\r s t' a -> pure (orderTap r $ foldr consTap t' s, a)) mempty [] t (runPatron p)
 {-# INLINE (++&) #-}
 
 -- | Attach a distiller to a tap.
@@ -114,7 +116,7 @@ t ++& p = boozeOn id (\t' r s a -> pure (orderTap r $ foldr consTap t' s, a)) me
 -- * @&@ Right operand is a patron.
 ($$&) :: (Monoid r, Monad m) => Distiller p q m r s -> Patron r s m a
   -> Patron p q m (Distiller p q m r s, a)
-d $$& b = boozeOn lift (\t r s a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
+d $$& b = boozeOn lift (\r s t a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
 {-# INLINE ($$&) #-}
 
 -- | Connect a tap with a patron and close the used tap.
