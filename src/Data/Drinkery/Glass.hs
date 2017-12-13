@@ -10,7 +10,7 @@
 -- Things to work with finite streams
 -----------------------------------------------------------------------
 module Data.Drinkery.Glass
-  ( digestif
+  ( eof
   , runBarman
   , runSommelier
   , pour
@@ -29,17 +29,17 @@ import Data.Drinkery.Tap
 import qualified Data.Foldable as F
 
 -- | End of stream
-digestif :: (Applicative m, Alternative f) => Tap m r (f a)
-digestif = Tap $ const $ pure (empty, digestif)
+eof :: (Applicative m, Alternative f) => Tap m r (f a)
+eof = Tap $ const $ pure (empty, eof)
 
--- | Run a 'Barman' action and terminate the stream with 'digestif'.
+-- | Run a 'Barman' action and terminate the stream with 'eof'.
 runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap m r (f s)
-runBarman m = unBarman m (const digestif)
+runBarman m = unBarman m (const eof)
 {-# INLINE runBarman #-}
 
--- | Run 'Sommelier' and terminate the stream with 'digestif'.
+-- | Run 'Sommelier' and terminate the stream with 'eof'.
 runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap m r (f s)
-runSommelier m = unSommelier m (consTap . pure) digestif
+runSommelier m = unSommelier m (consTap . pure) eof
 {-# INLINE runSommelier #-}
 
 pour :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
