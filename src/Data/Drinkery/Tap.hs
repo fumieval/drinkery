@@ -24,7 +24,6 @@ module Data.Drinkery.Tap (
 ) where
 
 import Control.Applicative
-import Control.Comonad
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
@@ -36,7 +35,7 @@ newtype Tap m r s = Tap { unTap :: r -> m (s, Tap m r s) }
 
 -- | Prepend a new element, delaying requests.
 consTap :: (Monoid r, Applicative m) => s -> Tap m r s -> Tap m r s
-consTap s r = Tap $ extend (\w -> pure (s, Tap w)) (unTap r)
+consTap s t = Tap $ \r -> pure (s, Tap $ unTap t . mappend r)
 {-# INLINE consTap #-}
 
 -- | Send a request to a 'Tap'.
