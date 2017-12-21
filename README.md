@@ -32,7 +32,7 @@ by `runBarman` and `runSommelier` respectively.
 * `spit :: s -> m ()` Leave one element.
 * `call :: r -> m ()` Send a request.
 
-`(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap m r s -> Patron r s m a -> m a`
+`(+&) :: (Monoid r, CloseRequest r, Monad m) => Spigot m r s -> Patron r s m a -> m a`
 connects a tap with a patron.
 
 ## Transducer
@@ -46,10 +46,9 @@ connects a tap with a patron.
 
 It is actually a `Tap` where the underlying monad is `Patron`.
 
-There are three composition operators:
+There are two composition operators:
 
-* `$&` Distiller-patron
-* `$$$` Distiler-distiller
+* `++&` Tap-patron
 * `++$` Tap-distiller
 
 `+`, `&`, and `$` means a tap, a patron, and a distiller respectively. The middle
@@ -67,7 +66,7 @@ Still there are some differences:
 
 * `Distiller` does not terminate.
 * Unlike pipes' `>->`, `$$$` propagates inner requests:
-    * `($$$) :: Monoid r => Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u`
+    * `(++$) :: Monoid r => Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u`
     * `(>->) :: Proxy a' a () b m r	-> Proxy () b c' c m r -> Proxy a' a c' c m r`
 * `Patron`, the consumer monad, may leave unconsumed inputs.
 * `drinkery` has much fewer operators.
