@@ -13,7 +13,7 @@ drainD h = sourceD D.+& h D.$& D.sinkNull
 value :: Int
 value = 10000
 
-sourceD :: (Monoid r, Monad m) => D.Tap m r (Maybe Int)
+sourceD :: (Monoid r, Monad m) => D.Spigot m r (Maybe Int)
 sourceD = D.runSommelier $ D.taste [1..value]
 
 main = defaultMain
