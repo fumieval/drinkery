@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
+{-# LANGUAGE Rank2Types, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 -----------------------------------------------------------------------
 --
 -- Module      :  Data.Drinkery.Tap
@@ -10,17 +10,26 @@
 -- Stream producers
 -----------------------------------------------------------------------
 module Data.Drinkery.Tap (
+  -- * Tap
   Tap(..)
   , consTap
   , orderTap
   , makeTap
+  , closeTap
+  -- * Barman
   , Barman(..)
-  , topup
+  , yield
   , accept
   , inexhaustible
+  -- * Sommelier
   , Sommelier(..)
   , taste
   , inquire
+  -- * Drinker
+  , await
+  , leftover
+  , request
+  , smell
 ) where
 
 import Control.Applicative
@@ -31,25 +40,47 @@ import Data.Drinkery.Class
 
 -- | @'Tap' m r s@ is a non-monadic, endless producer of @s@. It takes a request
 -- @r@.
-newtype Tap m r s = Tap { unTap :: r -> m (s, Tap m r s) }
+newtype Tap r s m = Tap { unTap :: r -> m (s, Tap r s m) }
 
 -- | Prepend a new element, delaying requests.
-consTap :: (Monoid r, Applicative m) => s -> Tap m r s -> Tap m r s
+consTap :: (Monoid r, Applicative m) => s -> Tap r s m -> Tap r s m
 consTap s t = Tap $ \r -> pure (s, Tap $ unTap t . mappend r)
 {-# INLINE consTap #-}
 
 -- | Send a request to a 'Tap'.
-orderTap :: (Monoid r) => r -> Tap m r s -> Tap m r s
+orderTap :: (Monoid r) => r -> Tap r s m -> Tap r s m
 orderTap r t = Tap $ \r' -> unTap t $! mappend r r'
 {-# INLINE orderTap #-}
 
 -- | Involve an action.
-makeTap :: (Monoid r, Monad m) => m (Tap m r s) -> Tap m r s
+makeTap :: (Monoid r, Monad m) => m (Tap r s m) -> Tap r s m
 makeTap m = Tap $ \r -> m >>= \t -> unTap t r
 {-# INLINE makeTap #-}
 
+closeTap :: (CloseRequest r, Functor m) => Tap r s m -> m ()
+closeTap t = void $ unTap t closeRequest
+
+await :: (Monoid r, MonadDrunk (Tap r s) m) => m s
+await = drink $ \t -> unTap t mempty
+{-# INLINE await #-}
+
+leftover :: (Monoid r, MonadDrunk (Tap r s) m) => s -> m ()
+leftover s = drink $ \t -> return ((), consTap s t)
+{-# INLINE leftover #-}
+
+request :: (Monoid r, MonadDrunk (Tap r s) m) => r -> m ()
+request r = drink $ \t -> return ((), orderTap r t)
+{-# INLINE request #-}
+
+-- | Get one element without consuming.
+smell :: (Monoid r, MonadDrunk (Tap r s) m) => m s
+smell = do
+  s <- await
+  leftover s
+  return s
+
 -- | Monadic producer
-newtype Barman r s m a = Barman { unBarman :: (a -> Tap m r s) -> Tap m r s }
+newtype Barman r s m a = Barman { unBarman :: (a -> Tap r s m) -> Tap r s m }
 
 instance Functor (Barman r s m) where
   fmap = liftM
@@ -65,14 +96,12 @@ instance Monad (Barman r s m) where
 instance MonadTrans (Barman r s) where
   lift m = Barman $ \k -> Tap $ \rs -> m >>= \a -> unTap (k a) rs
 
-instance MonadDrunk r s m => MonadDrunk r s (Barman p q m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
+  drink f = lift (drink f)
 
 -- | Produce one element. Orders are put off.
-topup :: (Monoid r, Applicative m) => s -> Barman r s m ()
-topup s = Barman $ \cont -> consTap s (cont ())
+yield :: (Monoid r, Applicative m) => s -> Barman r s m ()
+yield s = Barman $ \cont -> consTap s (cont ())
 
 -- | Accept orders and clear the queue.
 accept :: Monoid r => Barman r s m r
@@ -82,12 +111,12 @@ accept = Barman $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 --
 -- @Barman r s (Boozer p q m) x -> Distiller p q m r s@
 --
-inexhaustible :: Barman r s m x -> Tap m r s
+inexhaustible :: Barman r s m x -> Tap r s m
 inexhaustible t = unBarman t $ const $ inexhaustible t
 
 -- | Backtracking producer a.k.a. "ListT done right".
 newtype Sommelier r m s = Sommelier
-  { unSommelier :: forall x. (s -> Tap m r x -> Tap m r x) -> Tap m r x -> Tap m r x }
+  { unSommelier :: forall x. (s -> Tap r x m -> Tap r x m) -> Tap r x m -> Tap r x m }
 
 instance Functor (Sommelier r m) where
   fmap f m = Sommelier $ \c e -> unSommelier m (c . f) e
@@ -110,10 +139,8 @@ instance MonadTrans (Sommelier r) where
 instance MonadIO m => MonadIO (Sommelier r m) where
   liftIO m = Sommelier $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
-instance MonadDrunk r s m => MonadDrunk r s (Sommelier p m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadDrunk t m => MonadDrunk t (Sommelier p m) where
+  drink f = lift (drink f)
 
 -- | Take all the elements in a 'Foldable' container.
 taste :: Foldable f => f s -> Sommelier r m s

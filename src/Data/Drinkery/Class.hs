@@ -23,62 +23,69 @@ import qualified Control.Monad.Trans.Writer.Strict as Strict
 import qualified Control.Monad.Trans.RWS.Lazy as Lazy
 import qualified Control.Monad.Trans.RWS.Strict as Strict
 
-class Monad m => MonadDrunk r s m | m -> r s where
-  drink :: m s
-  spit :: s -> m ()
-  call :: r -> m ()
+newtype Drinker t m a = Drinker { runDrinker :: t m -> m (a, t m) }
 
-instance MonadDrunk r s m => MonadDrunk r s (Reader.ReaderT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance (Functor m) => Functor (Drinker s m) where
+  fmap f m = Drinker $ \s -> fmap (\(a, s') -> (f a, s')) $ runDrinker m s
+  {-# INLINE fmap #-}
 
-instance MonadDrunk r s m => MonadDrunk r s (Lazy.StateT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance (Functor m, Monad m) => Applicative (Drinker s m) where
+  pure a = Drinker $ \s -> return (a, s)
+  {-# INLINE pure #-}
+  Drinker mf <*> Drinker mx = Drinker $ \ s -> do
+    (f, s') <- mf s
+    (x, s'') <- mx s'
+    return (f x, s'')
+  {-# INLINE (<*>) #-}
+  m *> k = m >>= \_ -> k
+  {-# INLINE (*>) #-}
 
-instance MonadDrunk r s m => MonadDrunk r s (Strict.StateT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance (Monad m) => Monad (Drinker s m) where
+  return a = Drinker $ \s -> return (a, s)
+  {-# INLINE return #-}
+  m >>= k  = Drinker $ \s -> do
+    (a, s') <- runDrinker m s
+    runDrinker (k a) s'
+  {-# INLINE (>>=) #-}
+  fail str = Drinker $ \_ -> fail str
+  {-# INLINE fail #-}
 
-instance (Monoid x, MonadDrunk r s m) => MonadDrunk r s (Lazy.WriterT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadTrans (Drinker t) where
+  lift m = Drinker $ \t -> m >>= \a -> return (a, t)
+  {-# INLINE lift #-}
 
-instance (Monoid x, MonadDrunk r s m) => MonadDrunk r s (Strict.WriterT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+class Monad m => MonadDrunk t m | m -> t where
+  drink :: (forall n. Monad n => t n -> n (a, t n)) -> m a
 
-instance (Monoid y, MonadDrunk r s m) => MonadDrunk r s (Lazy.RWST x y z m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance Monad m => MonadDrunk t (Drinker t m) where
+  drink = Drinker
 
-instance (Monoid y, MonadDrunk r s m) => MonadDrunk r s (Strict.RWST x y z m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadDrunk t m => MonadDrunk t (Reader.ReaderT x m) where
+  drink f = lift (drink f)
 
-instance MonadDrunk r s m => MonadDrunk r s (MaybeT m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadDrunk t m => MonadDrunk t (Lazy.StateT x m) where
+  drink f = lift (drink f)
 
-instance MonadDrunk r s m => MonadDrunk r s (ContT x m) where
-  drink = lift drink
-  spit = lift . spit
-  call = lift . call
+instance MonadDrunk t m => MonadDrunk t (Strict.StateT x m) where
+  drink f = lift (drink f)
 
--- | Get one element without consuming.
-smell :: MonadDrunk r s m => m s
-smell = do
-  s <- drink
-  spit s
-  return s
+instance (Monoid x, MonadDrunk t m) => MonadDrunk t (Lazy.WriterT x m) where
+  drink f = lift (drink f)
+
+instance (Monoid x, MonadDrunk t m) => MonadDrunk t (Strict.WriterT x m) where
+  drink f = lift (drink f)
+
+instance (Monoid y, MonadDrunk t m) => MonadDrunk t (Lazy.RWST x y z m) where
+  drink f = lift (drink f)
+
+instance (Monoid y, MonadDrunk t m) => MonadDrunk t (Strict.RWST x y z m) where
+  drink f = lift (drink f)
+
+instance MonadDrunk t m => MonadDrunk t (MaybeT m) where
+  drink f = lift (drink f)
+
+instance MonadDrunk t m => MonadDrunk t (ContT x m) where
+  drink f = lift (drink f)
 
 class CloseRequest a where
   -- | A value representing a close request

@@ -9,7 +9,7 @@ drinkery supports three types of producers: `Barman`, `Sommelier`, and `Tap`.
 
 `Barman r s` is a monad transformer to produce a stream of type `s`. It is good
 at interactively serving values.
-`topup :: s -> Barman r s m a` is the primary action.
+`yield :: s -> Barman r s m a` is the primary action.
 A barman can also accept requests from the downstream using `accept`.
 
 `Sommelier r` is a list-like backtracking monad (also known as ListT done right).
@@ -24,27 +24,24 @@ by `runBarman` and `runSommelier` respectively.
 
 ## Consumer
 
-`Patron r s` is a monad transformer which consumes `s` and may request `r`.
+`Drinker tap` is a monad transformer which consumes `tap`.
 
-`MonadDrink` provides the actions of `Patron`:
+* `await :: m s` Get one element.
+* `leftover :: s -> m ()` Leave one element.
+* `request :: r -> m ()` Send a request.
 
-* `drink :: m s` Get one element.
-* `spit :: s -> m ()` Leave one element.
-* `call :: r -> m ()` Send a request.
-
-`(+&) :: (Monoid r, CloseRequest r, Monad m) => Spigot m r s -> Patron r s m a -> m a`
+`(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Drinker (Tap r s) m a -> m a`
 connects a tap with a patron.
 
 ## Transducer
 
-`Distiller p q m r s` is a stream transducer which
+`Distiller tap m r s` is a stream transducer which
 
-* Sends `p`
-* Consumes `q`
+* Consumes `tap`
 * Receives `r`
 * Produces `s`
 
-It is actually a `Tap` where the underlying monad is `Patron`.
+It is actually a `Tap` where the underlying monad is `Drinker`.
 
 There are two composition operators:
 
@@ -65,7 +62,7 @@ functionalities.
 Still there are some differences:
 
 * `Distiller` does not terminate.
-* Unlike pipes' `>->`, `$$$` propagates inner requests:
+* Unlike pipes' `>->`, `++$` propagates inner requests:
     * `(++$) :: Monoid r => Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u`
     * `(>->) :: Proxy a' a () b m r	-> Proxy () b c' c m r -> Proxy a' a c' c m r`
 * `Patron`, the consumer monad, may leave unconsumed inputs.
@@ -78,11 +75,10 @@ The main difference is interactivity.
 
 ### machines
 
-`machines` has multi-channel consumers but `drinkery` doesn't.
 `machines` does not support leftovers, nor interactive producers.
+Both `machines` and `drinkery` support multi-channel input.
 
 ### iteratee
 
 `iteratee` has an ability to handle requests but those are untyped (`SomeException`).
-`drinkery` provides a more robust interface for handling requests.
-Two monadic producers - `Barman` and `Sommelier` - are easier to use.
+`drinkery` provides a more robust interface for handling requests, and monadic producers.

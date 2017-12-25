@@ -10,7 +10,7 @@
 -- Stream transducers
 -----------------------------------------------------------------------
 module Data.Drinkery.Distiller
-  ( Spigot, Distiller
+  ( Distiller
   -- * Special combinators
   , (+&)
   , ($&)
@@ -18,67 +18,46 @@ module Data.Drinkery.Distiller
   , (++$)
   , (++&)
   -- * Stock distillers
+  , Still
+  , scanningMaybe
   , mapping
   , traversing
   , filtering
   , scanning
-  , scanningMaybe
-  , throughMaybe
-  -- * Internal
-  , boozeOn
   ) where
 
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.Identity
+import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
-import Data.Drinkery.Boozer
 
-boozeOn :: (Monoid r, Monad m) => (forall x. n x -> m x)
-  -> (r -> [s] -> Tap m r s -> a -> m z)
-  -> r -> [s] -> Tap m r s
-  -> Boozer r s n a
-  -> m z
-boozeOn t cont = go where
-  go !r [] (Tap f) (Drink k) = f r >>= \(s, b) -> go mempty [] b (k s)
-  go !r (s : ss) b (Drink f) = go r ss b (f s)
-  go !r ss b (Spit s k) = go r (s : ss) b k
-  go !r ss b (Call r' k) = go (mappend r r') ss b k
-  go !r ss b (Lift m) = t m >>= go r ss b
-  go !r ss b (Pure a) = cont r ss b a
-{-# INLINE boozeOn #-}
-
--- | @Spigot m r s@ is a stream producer that produces @s@ receiving @r@.
-type Spigot m = Tap (IdentityT m)
-
--- | @Distiller p q m r s@ is a stream transducer which has five parameters:
+-- | @Distiller tap m r s@ is a stream transducer which has four parameters:
 --
--- * @p@ request to the upstream
--- * @q@ input
+-- * @tap@ input
 -- * @m@ underlying monad
 -- * @r@ request from the downstream
 -- * @s@ output
 --
 -- This is also a 'Tap'.
 --
-type Distiller p q m = Tap (Patron p q m)
+type Distiller tap m r s = Tap r s (Drinker tap m)
 
 infix 6 +&
 infixr 7 $&
 infixr 7 ++&
 infixl 8 ++$
 
--- | Connect a tap with a patron.
+-- | Connect a tap with a Drinker.
 --
 -- Mnemonic:
 --
 -- * @+@ Left operand is a tap.
 -- * @+@ Returns a tap (along with the result).
--- * @&@ Right operand is a patron.
-(++&) :: (Monoid r, Monad m, Monad (t m), MonadTrans t) => Tap (t m) r s -> Patron r s m a -> t m (Tap (t m) r s, a)
-d ++& b = boozeOn lift (\r s t a -> pure (orderTap r $ foldr consTap t s, a)) mempty [] d (runPatron b)
+-- * @&@ Right operand is a Drinker.
+(++&) :: (Monad m) => tap m -> Drinker tap m a -> m (tap m, a)
+d ++& b = do
+  (a, d') <- runDrinker b d
+  return (d', a)
 {-# INLINE (++&) #-}
-{-# SPECIALISE INLINE (++&) :: (Monoid r, Monad m) => Spigot m r s -> Patron r s m a -> IdentityT m (Spigot m r s, a) #-}
 
 -- | Attach a distiller to a tap.
 --
@@ -93,64 +72,56 @@ d ++& b = boozeOn lift (\r s t a -> pure (orderTap r $ foldr consTap t s, a)) me
 -- (++$) :: Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u@
 -- @
 --
-(++$) :: (Monoid p, Monad m, Monad (t m), MonadTrans t) => Tap (t m) p q -> Distiller p q m r s -> Tap (t m) r s
-(++$) = go mempty [] where
-  go r lo b (Tap m) = Tap $ \rs -> boozeOn lift
-    (\r' lo' b' (s, cont) -> pure (s, go r' lo' b' cont))
-    r lo b (runPatron (m rs))
-{-# INLINE (++$) #-}
+(++$) :: (Monad m) => tap m -> Distiller tap m r s -> Tap r s m
+t ++$ d = Tap $ \rs -> do
+  ((s, d'), t') <- runDrinker (unTap d rs) t
+  return (s, t' ++$ d')
 
--- | Connect a spigot with a patron and close the used tap.
-(+&) :: (Monoid r, CloseRequest r, Monad m) => Spigot m r s -> Patron r s m a -> m a
-t +& b = runIdentityT $ do
+-- | Connect a spigot with a Drinker and close the used tap.
+(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Drinker (Tap r s) m a -> m a
+t +& b = do
   (t', a) <- t ++& b
-  _ <- unTap t' closeRequest
+  closeTap t'
   return a
 {-# INLINE (+&) #-}
 
 -- | Like '$&&' but discards the used distiller.
 --
--- @($&) :: Distiller p q m r s -> Patron r s m a -> Patron p q m a@
+-- @($&) :: Distiller p q m r s -> Drinker r s m a -> Drinker p q m a@
 --
-($&) :: (Monoid r, Monad m, Monad (t m), MonadTrans t) => Tap (t m) r s -> Patron r s m a -> t m a
+($&) :: (Monad m) => tap m -> Drinker tap m a -> m a
 t $& b = fmap snd $ t ++& b
 {-# INLINE ($&) #-}
 
+-- | Mono in/out
+type Still p q m r s = Distiller (Tap p q) m r s
+
+scanningMaybe :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r (Maybe a) m r (Maybe b)
+scanningMaybe f b0 = consTap (Just b0) $ go b0 where
+  go b = Tap $ \r -> Drinker $ \tap -> do
+    (m, t') <- unTap tap r
+    case m of
+      Just a -> let !b' = f b a in return ((Just b', go b'), t')
+      Nothing -> return ((Nothing, go b), t')
+{-# INLINE scanningMaybe #-}
+
 -- | Create a request-preserving distiller.
-propagating :: Functor m => Patron r a m (b, Distiller r a m r b) -> Distiller r a m r b
-propagating m = Tap $ \r -> call r >> m
+propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Still r a m r b) -> Still r a m r b
+propagating m = Tap $ \r -> request r >> m
 {-# INLINE propagating #-}
 
-mapping :: Functor m => (a -> b) -> Distiller r a m r b
-mapping f = propagating $ drink >>= \a -> return (f a, mapping f)
+mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a m r b
+mapping f = propagating $ await >>= \a -> return (f a, mapping f)
 
-traversing :: Monad m => (a -> m b) -> Distiller r a m r b
-traversing f = propagating $ drink >>= \a -> lift (f a) >>= \b -> return (b, traversing f)
+traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a m r b
+traversing f = propagating $ await >>= \a -> lift (f a) >>= \b -> return (b, traversing f)
 
-filtering :: (Monoid r, Functor m) => (a -> Bool) -> Distiller r a m r a
-filtering f = propagating $ drink >>= \a -> if f a
+filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a m r a
+filtering f = propagating $ await >>= \a -> if f a
   then return (a, filtering f)
   else unTap (filtering f) mempty
 
-scanning :: (Monoid r, Functor m) => (b -> a -> b) -> b -> Distiller r a m r b
+scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a m r b
 scanning f b0 = consTap b0 $ go b0 where
-  go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) drink
+  go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) await
 {-# INLINE scanning #-}
-
-scanningMaybe :: (Monoid r, Functor m) => (b -> a -> b) -> b -> Distiller r (Maybe a) m r (Maybe b)
-scanningMaybe f b0 = consTap (Just b0) $ go b0 where
-  go b = Tap $ \r -> Patron $ \cont -> Call r $ Drink $ \case
-    Just a -> let !b' = f b a in cont (Just b', go b')
-    Nothing -> cont (Nothing, go b)
-{-# INLINE scanningMaybe #-}
-
--- | Transform a 'Distiller' to operate on a stream of 'Maybe's.
-throughMaybe :: (Monoid r, Monad m) => Distiller p q m r s -> Distiller p (Maybe q) m r (Maybe s)
-throughMaybe d = Tap $ \rs -> iterBoozer
-  (\qs (s, d') -> (Just s, throughMaybe d') <$ mapM_ (spit . Just) qs)
-  (\cont -> drink >>= maybe (pure end) cont)
-  (\p cont -> call p >> cont)
-  ((>>=) . lift)
-  $ runPatron $ unTap d rs
-  where
-    end = (Nothing, throughMaybe d)
