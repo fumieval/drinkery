@@ -109,7 +109,7 @@ accept = Barman $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 
 -- | Create a infinite 'Tap' from a 'Barman'.
 --
--- @Barman r s (Boozer p q m) x -> Distiller p q m r s@
+-- @inexhaustible :: 'Barman' r s ('Drinker' tap m) x -> 'Distiller' tap m r s@
 --
 inexhaustible :: Barman r s m x -> Tap r s m
 inexhaustible t = unBarman t $ const $ inexhaustible t

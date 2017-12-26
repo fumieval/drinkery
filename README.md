@@ -63,7 +63,7 @@ Still there are some differences:
 
 * `Distiller` does not terminate.
 * Unlike pipes' `>->`, `++$` propagates inner requests:
-    * `(++$) :: Monoid r => Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u`
+    * `(++$) :: Monad m => Distiller tap m p q -> Distiller (Tap p q) (Drinker tap m) r s -> Distiller tap m r s`
     * `(>->) :: Proxy a' a () b m r	-> Proxy () b c' c m r -> Proxy a' a c' c m r`
 * `Patron`, the consumer monad, may leave unconsumed inputs.
 * `drinkery` has much fewer operators.

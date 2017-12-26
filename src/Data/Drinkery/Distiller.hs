@@ -67,11 +67,6 @@ d ++& b = do
 -- * @+@ Returns a tap.
 -- * @$@ Right operand is a distiller.
 --
--- @
--- (++$) :: Tap m p q -> Distiller p q m r s -> Tap m r s
--- (++$) :: Distiller p q m r s -> Distiller r s m t u -> Distiller p q m t u@
--- @
---
 (++$) :: (Monad m) => tap m -> Distiller tap m r s -> Tap r s m
 t ++$ d = Tap $ \rs -> do
   ((s, d'), t') <- runDrinker (unTap d rs) t
@@ -87,7 +82,7 @@ t +& b = do
 
 -- | Like '$&&' but discards the used distiller.
 --
--- @($&) :: Distiller p q m r s -> Drinker r s m a -> Drinker p q m a@
+-- @($&) :: Distiller tap m r s -> Drinker (Tap r s) m a -> Drinker tap m a@
 --
 ($&) :: (Monad m) => tap m -> Drinker tap m a -> m a
 t $& b = fmap snd $ t ++& b
