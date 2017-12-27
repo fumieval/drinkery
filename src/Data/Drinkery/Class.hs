@@ -22,8 +22,15 @@ import qualified Control.Monad.Trans.Writer.Lazy as Lazy
 import qualified Control.Monad.Trans.Writer.Strict as Strict
 import qualified Control.Monad.Trans.RWS.Lazy as Lazy
 import qualified Control.Monad.Trans.RWS.Strict as Strict
+import Control.Monad.IO.Class
+import Control.Monad.Reader.Class
+import Control.Monad.Writer.Class
+import Control.Monad.State.Class
 
 newtype Drinker t m a = Drinker { runDrinker :: t m -> m (a, t m) }
+
+mapDrinker :: (forall x. m x -> m x) -> Drinker t m a -> Drinker t m a
+mapDrinker t = Drinker . fmap t . runDrinker
 
 instance (Functor m) => Functor (Drinker s m) where
   fmap f m = Drinker $ \s -> fmap (\(a, s') -> (f a, s')) $ runDrinker m s
@@ -53,6 +60,28 @@ instance (Monad m) => Monad (Drinker s m) where
 instance MonadTrans (Drinker t) where
   lift m = Drinker $ \t -> m >>= \a -> return (a, t)
   {-# INLINE lift #-}
+
+instance MonadIO m => MonadIO (Drinker t m) where
+  liftIO = lift . liftIO
+
+instance MonadReader r m => MonadReader r (Drinker t m) where
+  ask = lift ask
+  local f = mapDrinker (local f)
+
+instance MonadState s m => MonadState s (Drinker t m) where
+  get = lift get
+  put = lift . put
+  state = lift . state
+
+instance MonadWriter s m => MonadWriter s (Drinker t m) where
+  writer = lift . writer
+  tell   = lift . tell
+  listen m = Drinker $ \s -> do
+    ((a, s'), w) <- listen (runDrinker m s)
+    return ((a, w), s')
+  pass m = Drinker $ \s -> pass $ do
+    ((a, f), s') <- runDrinker m s
+    return ((a, s'), f)
 
 class Monad m => MonadDrunk t m | m -> t where
   drink :: (forall n. Monad n => t n -> n (a, t n)) -> m a
