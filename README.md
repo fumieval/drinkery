@@ -31,7 +31,7 @@ by `runBarman` and `runSommelier` respectively.
 * `request :: r -> m ()` Send a request.
 
 `(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Drinker (Tap r s) m a -> m a`
-connects a tap with a patron.
+connects a tap with a drinker.
 
 ## Transducer
 
@@ -45,10 +45,10 @@ It is actually a `Tap` where the underlying monad is `Drinker`.
 
 There are two composition operators:
 
-* `++&` Tap-patron
+* `++&` Tap-drinker
 * `++$` Tap-distiller
 
-`+`, `&`, and `$` means a tap, a patron, and a distiller respectively. The middle
+`+`, `&`, and `$` means a tap, a drinker, and a distiller respectively. The middle
 characters of these operators signify the resulting structures.
 
 ## Why drinkery?
@@ -65,7 +65,7 @@ Still there are some differences:
 * Unlike pipes' `>->`, `++$` propagates inner requests:
     * `(++$) :: Monad m => Distiller tap m p q -> Distiller (Tap p q) (Drinker tap m) r s -> Distiller tap m r s`
     * `(>->) :: Proxy a' a () b m r	-> Proxy () b c' c m r -> Proxy a' a c' c m r`
-* `Patron`, the consumer monad, may leave unconsumed inputs.
+* `Drinker`, the consumer monad, may leave unconsumed inputs.
 * `drinkery` has much fewer operators.
 
 ### conduit
