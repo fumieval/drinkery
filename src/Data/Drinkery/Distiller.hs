@@ -73,10 +73,10 @@ t ++$ d = Tap $ \rs -> do
   return (s, t' ++$ d')
 
 -- | Connect a spigot with a Drinker and close the used tap.
-(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Drinker (Tap r s) m a -> m a
+(+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
 t +& b = do
   (t', a) <- t ++& b
-  closeTap t'
+  close t'
   return a
 {-# INLINE (+&) #-}
 

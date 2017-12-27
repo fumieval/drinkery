@@ -96,3 +96,6 @@ instance CloseRequest () where
 
 instance CloseRequest a => CloseRequest [a] where
   closeRequest = [closeRequest]
+
+class Closable t where
+  close :: Monad m => t m -> m ()

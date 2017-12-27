@@ -15,7 +15,6 @@ module Data.Drinkery.Tap (
   , consTap
   , orderTap
   , makeTap
-  , closeTap
   -- * Barman
   , Barman(..)
   , yield
@@ -57,8 +56,8 @@ makeTap :: (Monoid r, Monad m) => m (Tap r s m) -> Tap r s m
 makeTap m = Tap $ \r -> m >>= \t -> unTap t r
 {-# INLINE makeTap #-}
 
-closeTap :: (CloseRequest r, Functor m) => Tap r s m -> m ()
-closeTap t = void $ unTap t closeRequest
+instance CloseRequest r => Closable (Tap r s) where
+  close t = void $ unTap t closeRequest
 
 await :: (Monoid r, MonadDrunk (Tap r s) m) => m s
 await = drink $ \t -> unTap t mempty
