@@ -33,13 +33,13 @@ import Data.Drinkery.Class
 -- | @Distiller tap m r s@ is a stream transducer which has four parameters:
 --
 -- * @tap@ input
--- * @m@ underlying monad
 -- * @r@ request from the downstream
 -- * @s@ output
+-- * @m@ underlying monad
 --
 -- This is also a 'Tap'.
 --
-type Distiller tap m r s = Tap r s (Drinker tap m)
+type Distiller tap r s m = Tap r s (Drinker tap m)
 
 infix 6 +&
 infixr 7 $&
@@ -67,12 +67,12 @@ d ++& b = do
 -- * @+@ Returns a tap.
 -- * @$@ Right operand is a distiller.
 --
-(++$) :: (Monad m) => tap m -> Distiller tap m r s -> Tap r s m
+(++$) :: (Monad m) => tap m -> Distiller tap r s m -> Tap r s m
 t ++$ d = Tap $ \rs -> do
   ((s, d'), t') <- runDrinker (unTap d rs) t
   return (s, t' ++$ d')
 
--- | Connect a spigot with a Drinker and close the used tap.
+-- | Feed a tap to a drinker and close the used tap.
 (+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
 t +& b = do
   (t', a) <- t ++& b
@@ -80,7 +80,7 @@ t +& b = do
   return a
 {-# INLINE (+&) #-}
 
--- | Like '$&&' but discards the used distiller.
+-- | Like ('+&') but discards the used distiller.
 --
 -- @($&) :: Distiller tap m r s -> Drinker (Tap r s) m a -> Drinker tap m a@
 --
@@ -89,9 +89,9 @@ t $& b = fmap snd $ t ++& b
 {-# INLINE ($&) #-}
 
 -- | Mono in/out
-type Still p q m r s = Distiller (Tap p q) m r s
+type Still p q r s m = Distiller (Tap p q) r s m
 
-scanningMaybe :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r (Maybe a) m r (Maybe b)
+scanningMaybe :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r (Maybe a) r (Maybe b) m
 scanningMaybe f b0 = consTap (Just b0) $ go b0 where
   go b = Tap $ \r -> Drinker $ \tap -> do
     (m, t') <- unTap tap r
@@ -101,22 +101,22 @@ scanningMaybe f b0 = consTap (Just b0) $ go b0 where
 {-# INLINE scanningMaybe #-}
 
 -- | Create a request-preserving distiller.
-propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Still r a m r b) -> Still r a m r b
+propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Still r a r b m) -> Still r a r b m
 propagating m = Tap $ \r -> request r >> m
 {-# INLINE propagating #-}
 
-mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a m r b
+mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a r b m
 mapping f = propagating $ await >>= \a -> return (f a, mapping f)
 
-traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a m r b
+traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a r b m
 traversing f = propagating $ await >>= \a -> lift (f a) >>= \b -> return (b, traversing f)
 
-filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a m r a
+filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a r a m
 filtering f = propagating $ await >>= \a -> if f a
   then return (a, filtering f)
   else unTap (filtering f) mempty
 
-scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a m r b
+scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a r b m
 scanning f b0 = consTap b0 $ go b0 where
   go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) await
 {-# INLINE scanning #-}

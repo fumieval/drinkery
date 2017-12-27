@@ -8,7 +8,7 @@ import Criterion.Main
 import Data.List
 import Data.Void
 
-drainD :: D.Still () (Maybe Int) IO () (Maybe a) -> IO ()
+drainD :: D.Still () (Maybe Int) () (Maybe a) IO -> IO ()
 drainD h = sourceD D.+& h D.$& D.sinkNull
 
 value :: Int
