@@ -10,7 +10,12 @@
 --
 -- Basic classes
 -----------------------------------------------------------------------
-module Data.Drinkery.Class where
+module Data.Drinkery.Class
+  ( Drinker(..)
+  , mapDrinker
+  , MonadDrunk(..)
+  , CloseRequest(..)
+  , Closable(..)) where
 
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Cont
@@ -27,10 +32,12 @@ import Control.Monad.Reader.Class
 import Control.Monad.Writer.Class
 import Control.Monad.State.Class
 
+-- | A 'Drinker' is a stream consumer monad.
 newtype Drinker t m a = Drinker { runDrinker :: t m -> m (a, t m) }
 
 mapDrinker :: (forall x. m x -> m x) -> Drinker t m a -> Drinker t m a
 mapDrinker t = Drinker . fmap t . runDrinker
+{-# INLINE mapDrinker #-}
 
 instance (Functor m) => Functor (Drinker s m) where
   fmap f m = Drinker $ \s -> fmap (\(a, s') -> (f a, s')) $ runDrinker m s
@@ -83,6 +90,7 @@ instance MonadWriter s m => MonadWriter s (Drinker t m) where
     ((a, f), s') <- runDrinker m s
     return ((a, s'), f)
 
+-- | Monads that drink
 class Monad m => MonadDrunk t m | m -> t where
   drink :: (forall n. Monad n => t n -> n (a, t n)) -> m a
 
@@ -126,5 +134,6 @@ instance CloseRequest () where
 instance CloseRequest a => CloseRequest [a] where
   closeRequest = [closeRequest]
 
+-- | Closable tap
 class Closable t where
   close :: Monad m => t m -> m ()

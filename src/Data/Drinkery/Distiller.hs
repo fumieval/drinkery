@@ -46,7 +46,7 @@ infixr 7 $&
 infixr 7 ++&
 infixl 8 ++$
 
--- | Connect a tap with a Drinker.
+-- | Connect a tap with a Drinker. Flipped 'runDrinker'.
 --
 -- Mnemonic:
 --
@@ -75,17 +75,17 @@ t ++$ d = Tap $ \rs -> do
 -- | Feed a tap to a drinker and close the used tap.
 (+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
 t +& b = do
-  (t', a) <- t ++& b
+  (a, t') <- runDrinker b t
   close t'
   return a
 {-# INLINE (+&) #-}
 
--- | Like ('+&') but discards the used distiller.
+-- | Like ('+&') but discards the used tap.
 --
 -- @($&) :: Distiller tap m r s -> Drinker (Tap r s) m a -> Drinker tap m a@
 --
 ($&) :: (Monad m) => tap m -> Drinker tap m a -> m a
-t $& b = fmap snd $ t ++& b
+t $& b = fmap fst $ runDrinker b t
 {-# INLINE ($&) #-}
 
 -- | Mono in/out
@@ -106,15 +106,19 @@ propagating m = Tap $ \r -> request r >> m
 {-# INLINE propagating #-}
 
 mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a r b m
-mapping f = propagating $ await >>= \a -> return (f a, mapping f)
+mapping f = go where
+  go = propagating $ await >>= \a -> return (f a, go)
+{-# INLINE mapping #-}
 
 traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a r b m
-traversing f = propagating $ await >>= \a -> lift (f a) >>= \b -> return (b, traversing f)
+traversing f = go where
+  go = propagating $ await >>= \a -> lift (f a) >>= \b -> return (b, go)
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a r a m
-filtering f = propagating $ await >>= \a -> if f a
-  then return (a, filtering f)
-  else unTap (filtering f) mempty
+filtering f = go where
+  go = propagating $ await >>= \a -> if f a
+    then return (a, go)
+    else unTap go mempty
 
 scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a r b m
 scanning f b0 = consTap b0 $ go b0 where

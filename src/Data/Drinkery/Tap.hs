@@ -77,16 +77,17 @@ smell = do
   s <- await
   leftover s
   return s
+{-# INLINE smell #-}
 
 -- | Monadic producer
 newtype Barman r s m a = Barman { unBarman :: (a -> Tap r s m) -> Tap r s m }
 
 instance Functor (Barman r s m) where
-  fmap = liftM
+  fmap f (Barman m) = Barman $ \cont -> m (cont . f)
 
 instance Applicative (Barman r s m) where
   pure = return
-  (<*>) = ap
+  Barman m <*> Barman k = Barman $ \cont -> m $ \f -> k $ cont . f
 
 instance Monad (Barman r s m) where
   return a = Barman ($ a)
