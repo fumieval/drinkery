@@ -20,15 +20,20 @@ module Data.Drinkery.Tap (
   , yield
   , accept
   , inexhaustible
+  , runBarman
+  , pour
   -- * Sommelier
   , Sommelier(..)
   , taste
   , inquire
+  , runSommelier
   -- * Drinker
-  , await
+  , drink
   , leftover
   , request
   , smell
+  -- * End of stream
+  , eof
 ) where
 
 import Control.Applicative
@@ -59,22 +64,22 @@ makeTap m = Tap $ \r -> m >>= \t -> unTap t r
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
 
-await :: (Monoid r, MonadDrunk (Tap r s) m) => m s
-await = drink $ \t -> unTap t mempty
-{-# INLINE await #-}
+drink :: (Monoid r, MonadDrunk (Tap r s) m) => m s
+drink = drinking $ \t -> unTap t mempty
+{-# INLINE drink #-}
 
 leftover :: (Monoid r, MonadDrunk (Tap r s) m) => s -> m ()
-leftover s = drink $ \t -> return ((), consTap s t)
+leftover s = drinking $ \t -> return ((), consTap s t)
 {-# INLINE leftover #-}
 
 request :: (Monoid r, MonadDrunk (Tap r s) m) => r -> m ()
-request r = drink $ \t -> return ((), orderTap r t)
+request r = drinking $ \t -> return ((), orderTap r t)
 {-# INLINE request #-}
 
 -- | Get one element without consuming.
 smell :: (Monoid r, MonadDrunk (Tap r s) m) => m s
 smell = do
-  s <- await
+  s <- drink
   leftover s
   return s
 {-# INLINE smell #-}
@@ -97,7 +102,7 @@ instance MonadTrans (Barman r s) where
   lift m = Barman $ \k -> Tap $ \rs -> m >>= \a -> unTap (k a) rs
 
 instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 -- | Produce one element. Orders are put off.
 yield :: (Monoid r, Applicative m) => s -> Barman r s m ()
@@ -140,7 +145,7 @@ instance MonadIO m => MonadIO (Sommelier r m) where
   liftIO m = Sommelier $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
 instance MonadDrunk t m => MonadDrunk t (Sommelier p m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 -- | Take all the elements in a 'Foldable' container.
 taste :: Foldable f => f s -> Sommelier r m s
@@ -149,3 +154,21 @@ taste xs = Sommelier $ \c e -> foldr c e xs
 -- | Get a request.
 inquire :: Monoid r => Sommelier r m r
 inquire = Sommelier $ \c e -> Tap $ \rs -> unTap (c rs e) mempty
+
+-- | End of stream
+eof :: (Applicative m, Alternative f) => Tap r (f a) m
+eof = Tap $ const $ pure (empty, eof)
+
+-- | Run a 'Barman' action and terminate the stream with 'eof'.
+runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap r (f s) m
+runBarman m = unBarman m (const eof)
+{-# INLINE runBarman #-}
+
+-- | Run 'Sommelier' and terminate the stream with 'eof'.
+runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap r (f s) m
+runSommelier m = unSommelier m (consTap . pure) eof
+{-# INLINE runSommelier #-}
+
+pour :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
+pour = yield . pure
+{-# INLINE pour #-}

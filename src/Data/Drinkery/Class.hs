@@ -92,37 +92,37 @@ instance MonadWriter s m => MonadWriter s (Drinker t m) where
 
 -- | Monads that drink
 class Monad m => MonadDrunk t m | m -> t where
-  drink :: (forall n. Monad n => t n -> n (a, t n)) -> m a
+  drinking :: (forall n. Monad n => t n -> n (a, t n)) -> m a
 
 instance Monad m => MonadDrunk t (Drinker t m) where
-  drink = Drinker
+  drinking = Drinker
 
 instance MonadDrunk t m => MonadDrunk t (Reader.ReaderT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance MonadDrunk t m => MonadDrunk t (Lazy.StateT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance MonadDrunk t m => MonadDrunk t (Strict.StateT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance (Monoid x, MonadDrunk t m) => MonadDrunk t (Lazy.WriterT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance (Monoid x, MonadDrunk t m) => MonadDrunk t (Strict.WriterT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance (Monoid y, MonadDrunk t m) => MonadDrunk t (Lazy.RWST x y z m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance (Monoid y, MonadDrunk t m) => MonadDrunk t (Strict.RWST x y z m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance MonadDrunk t m => MonadDrunk t (MaybeT m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 instance MonadDrunk t m => MonadDrunk t (ContT x m) where
-  drink f = lift (drink f)
+  drinking f = lift (drinking f)
 
 class CloseRequest a where
   -- | A value representing a close request

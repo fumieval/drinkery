@@ -107,20 +107,20 @@ propagating m = Tap $ \r -> request r >> m
 
 mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a r b m
 mapping f = go where
-  go = propagating $ await >>= \a -> return (f a, go)
+  go = propagating $ drink >>= \a -> return (f a, go)
 {-# INLINE mapping #-}
 
 traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a r b m
 traversing f = go where
-  go = propagating $ await >>= \a -> lift (f a) >>= \b -> return (b, go)
+  go = propagating $ drink >>= \a -> lift (f a) >>= \b -> return (b, go)
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a r a m
 filtering f = go where
-  go = propagating $ await >>= \a -> if f a
+  go = propagating $ drink >>= \a -> if f a
     then return (a, go)
     else unTap go mempty
 
 scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a r b m
 scanning f b0 = consTap b0 $ go b0 where
-  go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) await
+  go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) drink
 {-# INLINE scanning #-}

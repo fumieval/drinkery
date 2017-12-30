@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 import qualified Data.Drinkery as D
-import qualified Data.Drinkery.Glass as D
 import Data.Functor.Identity
 import Control.Arrow
 import Control.Monad
@@ -9,7 +8,7 @@ import Data.List
 import Data.Void
 
 drainD :: D.Still () (Maybe Int) () (Maybe a) IO -> IO ()
-drainD h = sourceD D.+& h D.$& D.sinkNull
+drainD h = sourceD D.+& h D.$& D.drainFrom D.drink
 
 value :: Int
 value = 10000
