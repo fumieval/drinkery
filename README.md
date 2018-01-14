@@ -26,7 +26,7 @@ by `runBarman` and `runSommelier` respectively.
 
 `Drinker tap` is a monad transformer which consumes `tap`.
 
-* `await :: m s` Get one element.
+* `drink :: m s` Get one element.
 * `leftover :: s -> m ()` Leave one element.
 * `request :: r -> m ()` Send a request.
 
