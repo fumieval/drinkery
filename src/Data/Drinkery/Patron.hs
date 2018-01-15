@@ -57,6 +57,7 @@ serving_ t0 = lift (gather runPatron t0) >>= go
         Left f -> (f :) <$> loop ms
         Right _ -> loop ms
       loop [] = pure []
+    go [] = return ()
     go t = do
       s <- await
       lift (gather (\f -> runPatron (f s)) t) >>= go
