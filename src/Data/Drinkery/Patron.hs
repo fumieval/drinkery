@@ -49,8 +49,8 @@ await :: Monad m => Patron s m s
 await = Patron $ pure $ Left pure
 {-# INLINE await #-}
 
-serving :: Monad m => [Patron s m a] -> Patron s m ()
-serving t0 = lift (gather runPatron t0) >>= go
+serving_ :: Monad m => [Patron s m a] -> Patron s m ()
+serving_ t0 = lift (gather runPatron t0) >>= go
   where
     gather k = loop where
       loop (m : ms) = k m >>= \case
