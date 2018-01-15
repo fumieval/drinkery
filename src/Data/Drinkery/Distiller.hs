@@ -29,6 +29,7 @@ module Data.Drinkery.Distiller
 import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
+import Data.Tuple
 
 -- | @Distiller tap m r s@ is a stream transducer which has four parameters:
 --
@@ -53,10 +54,8 @@ infixl 8 ++$
 -- * @+@ Left operand is a tap.
 -- * @+@ Returns a tap (along with the result).
 -- * @&@ Right operand is a Drinker.
-(++&) :: (Monad m) => tap m -> Drinker tap m a -> m (tap m, a)
-d ++& b = do
-  (a, d') <- runDrinker b d
-  return (d', a)
+(++&) :: (Functor m) => tap m -> Drinker tap m a -> m (tap m, a)
+d ++& b = swap <$> runDrinker b d
 {-# INLINE (++&) #-}
 
 -- | Attach a distiller to a tap.
@@ -67,10 +66,9 @@ d ++& b = do
 -- * @+@ Returns a tap.
 -- * @$@ Right operand is a distiller.
 --
-(++$) :: (Monad m) => tap m -> Distiller tap r s m -> Tap r s m
-t ++$ d = Tap $ \rs -> do
-  ((s, d'), t') <- runDrinker (unTap d rs) t
-  return (s, t' ++$ d')
+(++$) :: (Functor m) => tap m -> Distiller tap r s m -> Tap r s m
+t ++$ d = Tap $ \r -> (\((s, d'), t') -> (s, t' ++$ d'))
+  <$> runDrinker (unTap d r) t
 
 -- | Feed a tap to a drinker and close the used tap.
 (+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
