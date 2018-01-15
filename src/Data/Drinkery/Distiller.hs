@@ -82,7 +82,7 @@ t +& b = do
 
 -- | Like ('+&') but discards the used tap.
 --
--- @($&) :: Distiller tap m r s -> Drinker (Tap r s) m a -> Drinker tap m a@
+-- @($&) :: Distiller tap m r s -> Drinker (Tap r s) (Drinker tap m) a -> Drinker tap m a@
 --
 ($&) :: (Monad m) => tap m -> Drinker tap m a -> m a
 t $& b = fmap fst $ runDrinker b t
