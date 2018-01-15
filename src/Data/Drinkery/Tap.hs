@@ -138,6 +138,10 @@ instance Alternative (Sommelier r m) where
   empty = Sommelier $ \_ e -> e
   a <|> b = Sommelier $ \c e -> unSommelier a c (unSommelier b c e)
 
+instance MonadPlus (Sommelier r m) where
+  mzero = empty
+  mplus = (<|>)
+
 instance MonadTrans (Sommelier r) where
   lift m = Sommelier $ \c e -> Tap $ \rs -> m >>= \a -> unTap (c a e) rs
 
