@@ -16,9 +16,7 @@ module Data.Drinkery.Combinators
   )
 where
 
-import Control.Applicative
 import Control.Monad hiding (foldM)
-import Data.Drinkery.Tap
 import qualified Data.Foldable as F
 
 foldlFrom' :: (Foldable t, Monad m) => m (t a) -> (b -> a -> b) -> b -> m b
