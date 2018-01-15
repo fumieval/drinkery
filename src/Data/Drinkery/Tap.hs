@@ -21,12 +21,14 @@ module Data.Drinkery.Tap (
   , accept
   , inexhaustible
   , runBarman
+  , runBarman'
   , pour
   -- * Sommelier
   , Sommelier(..)
   , taste
   , inquire
   , runSommelier
+  , runSommelier'
   -- * Drinker
   , drink
   , leftover
@@ -168,10 +170,20 @@ runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> T
 runBarman m = unBarman m (const eof)
 {-# INLINE runBarman #-}
 
+-- | Specialised 'runBarman'
+runBarman' :: (Applicative m, Alternative f) => Barman () (f s) m a -> Tap () (f s) m
+runBarman' = runBarman
+{-# INLINE runBarman' #-}
+
 -- | Run 'Sommelier' and terminate the stream with 'eof'.
 runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap r (f s) m
 runSommelier m = unSommelier m (consTap . pure) eof
 {-# INLINE runSommelier #-}
+
+-- | Specialised 'runSommelier'
+runSommelier' :: (Applicative m, Alternative f) => Sommelier () m s -> Tap () (f s) m
+runSommelier' = runSommelier
+{-# INLINE runSommelier' #-}
 
 pour :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
 pour = yield . pure
