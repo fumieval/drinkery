@@ -67,8 +67,10 @@ d ++& b = swap <$> runDrinker b d
 -- * @$@ Right operand is a distiller.
 --
 (++$) :: (Functor m) => tap m -> Distiller tap r s m -> Tap r s m
-t ++$ d = Tap $ \r -> (\((s, d'), t') -> (s, t' ++$ d'))
-  <$> runDrinker (unTap d r) t
+(++$) = go where -- looks strange, but seems to perform better (GHC 8.2.2)
+  go t d = Tap $ \r -> (\((s, d'), t') -> (s, go t' d'))
+    <$> runDrinker (unTap d r) t
+{-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.
 (+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
