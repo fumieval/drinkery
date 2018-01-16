@@ -20,6 +20,7 @@ module Data.Drinkery.Distiller
   -- * Stock distillers
   , Still
   , scanningMaybe
+  , filteringMaybe
   , mapping
   , traversing
   , filtering
@@ -99,6 +100,10 @@ scanningMaybe f b0 = consTap (Just b0) $ go b0 where
       Just a -> let !b' = f b a in return ((Just b', go b'), t')
       Nothing -> return ((Nothing, go b), t')
 {-# INLINE scanningMaybe #-}
+
+filteringMaybe :: (Monoid r, Monad m) => (a -> Bool) -> Still r (Maybe a) r (Maybe a) m
+filteringMaybe = filtering . maybe True
+{-# INLINE filteringMaybe #-}
 
 -- | Create a request-preserving distiller.
 propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Still r a r b m) -> Still r a r b m
