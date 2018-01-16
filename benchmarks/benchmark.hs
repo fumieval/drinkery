@@ -1,29 +1,31 @@
-{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
-import qualified Data.Drinkery as D
-import Data.Functor.Identity
 import Control.Arrow
 import Control.Monad
-import Criterion.Main
+import Data.Functor.Identity
 import Data.List
 import Data.Void
+import Gauge.Main
+import qualified Control.Monad.Trans.List as L
+import qualified Data.Drinkery as D
+import qualified ListT as L
 import qualified Pipes as P
 import qualified Pipes.Prelude as P
-import qualified ListT as L
-import qualified Control.Monad.Trans.List as L
+import qualified Data.Conduit as C
+import qualified Data.Conduit.Combinators as CC
+import qualified Data.Machine as M
 
 drainD :: Monad m => D.Drinker (D.Tap () (Maybe a)) m ()
 drainD = D.drainFrom D.drink
 
 sourceAlt :: Monad m => ([Int] -> m Int) -> m Int
 sourceAlt k = do
-  a <- k [1..20]
+  a <- k [1..50]
   b <- k [1..a]
   c <- k [1..b]
   return $! a + b + c
 {-# INLINE sourceAlt #-}
 
 sourceSeq :: Monad m => (Int -> m ()) -> m ()
-sourceSeq k = forM_ [1..20] $ \a -> forM_ [1..a] $ \b -> forM_ [1..b] $ \c -> k $! a + b + c
+sourceSeq k = forM_ [1..50] $ \a -> forM_ [1..a] $ \b -> forM_ [1..b] $ \c -> k $! a + b + c
 {-# INLINE sourceSeq #-}
 
 sourceD :: Monad m => D.Tap () (Maybe Int) m
@@ -34,11 +36,19 @@ sourceP :: Monad m => P.Producer Int m ()
 sourceP = sourceSeq P.yield
 {-# INLINE sourceP #-}
 
+sourceC :: Monad m => C.Producer m Int
+sourceC = sourceSeq C.yield
+{-# INLINE sourceC #-}
+
+sourceM :: M.Source Int
+sourceM = M.construct $ sourceSeq M.yield
+{-# INLINE sourceM #-}
+
 main = defaultMain
   [ bgroup "drain"
       [ bench "drinkery/Barman" $ whnfIO
           $ apply (D.+& drainD)
-          $ D.runBarman (sourceSeq (D.yield . pure))
+          $ D.runBarman (sourceSeq D.pour)
       , bench "drinkery/Sommelier" $ whnfIO
           $ apply (D.+& drainD) sourceD
       , bench "pipes/Producer" $ whnfIO
@@ -58,6 +68,22 @@ main = defaultMain
           $ D.scanningMaybe (+) 0
       , bench "pipes" $ whnfIO $ apply (\p -> P.runEffect $ P.for (sourceP P.>-> p) P.discard)
           $ P.scan (+) 0 id
+      , bench "conduit" $ whnfIO $ apply (\h -> sourceC C.$= h C.$$ CC.sinkNull)
+          $ CC.scanl (+) 0
+      , bench "machines" $ whnfIO $ apply (M.runT_ . (sourceM M.~>))
+          $ M.scan (+) 0
+      ]
+   , bgroup "scan-chain"
+      [ bench "drinkery/++$" $ whnfIO $ apply (\h -> D.runBarman (sourceSeq D.pour) D.+& h D.$& drainD)
+          $ D.scanningMaybe (+) 0 D.++$ D.scanningMaybe (+) 0
+      , bench "drinkery/$&" $ whnfIO $ apply (\(h, h') -> D.runBarman (sourceSeq D.pour) D.+& h D.$& h' D.$& drainD)
+          (D.scanningMaybe (+) 0, D.scanningMaybe (+) 0)
+      , bench "pipes" $ whnfIO $ apply (\p -> P.runEffect $ P.for (sourceP P.>-> p) P.discard)
+          $ P.scan (+) 0 id P.>-> P.scan (+) 0 id
+      , bench "conduit" $ whnfIO $ apply (\h -> sourceC C.$= h C.$$ CC.sinkNull)
+          $ CC.scanl (+) 0 C.=$= CC.scanl (+) 0
+      , bench "machines" $ whnfIO $ apply (M.runT_ . (sourceM M.~>))
+          $ M.scan (+) 0 M.~> M.scan (+) 0
       ]
   ]
 

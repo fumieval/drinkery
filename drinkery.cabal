@@ -31,7 +31,7 @@ benchmark benchmark
   main-is:        benchmark.hs
   ghc-options:    -O2
   hs-source-dirs: benchmarks
-  build-depends: base, drinkery, criterion, pipes, machines, conduit, list-t, ListT
+  build-depends: base, drinkery, gauge, pipes, machines, conduit, conduit-combinators, list-t, ListT
   default-language:    Haskell2010
 
 source-repository head
