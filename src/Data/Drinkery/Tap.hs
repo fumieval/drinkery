@@ -29,6 +29,7 @@ module Data.Drinkery.Tap (
   , inquire
   , runSommelier
   , runSommelier'
+  , retractSommelier
   -- * Drinker
   , drink
   , leftover
@@ -62,6 +63,11 @@ orderTap r t = Tap $ \r' -> unTap t $! mappend r r'
 makeTap :: (Monoid r, Monad m) => m (Tap r s m) -> Tap r s m
 makeTap m = Tap $ \r -> m >>= \t -> unTap t r
 {-# INLINE makeTap #-}
+
+repeatTap :: Applicative m => s -> Tap r s m
+repeatTap s = go where
+  go = Tap $ const $ pure (s, go)
+{-# INLINE repeatTap #-}
 
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
@@ -163,7 +169,7 @@ inquire = Sommelier $ \c e -> Tap $ \rs -> unTap (c rs e) mempty
 
 -- | End of stream
 eof :: (Applicative m, Alternative f) => Tap r (f a) m
-eof = Tap $ const $ pure (empty, eof)
+eof = repeatTap empty
 
 -- | Run a 'Barman' action and terminate the stream with 'eof'.
 runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap r (f s) m
@@ -184,6 +190,11 @@ runSommelier m = unSommelier m (consTap . pure) eof
 runSommelier' :: (Applicative m, Alternative f) => Sommelier () m s -> Tap () (f s) m
 runSommelier' = runSommelier
 {-# INLINE runSommelier' #-}
+
+retractSommelier :: Monad m => Sommelier () m s -> m ()
+retractSommelier (Sommelier f) = go $ f (const $ consTap True) (repeatTap False) where
+  go m = unTap m () >>= \(a, k) -> when a (go k)
+{-# INLINE retractSommelier #-}
 
 pour :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
 pour = yield . pure
