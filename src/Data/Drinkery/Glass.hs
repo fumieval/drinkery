@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns, Rank2Types, FlexibleContexts #-}
 module Data.Drinkery.Glass where
 
+import Control.Applicative
 import Data.Drinkery.Class
 import Data.Drinkery.Distiller
 import Data.Drinkery.Tap
@@ -26,3 +27,11 @@ map = mapping . fmap
 filter :: Monad m => (a -> Bool) -> SimpleStill a a m
 filter = filtering . maybe True
 {-# INLINE filter #-}
+
+-- | Consume all the content of a 'Tap' and return the elements as a list.
+drinkUp :: (Monoid r, Monad m) => Drinker (Tap r (Maybe s)) m [s]
+drinkUp = drink >>= maybe (pure []) (\x -> (x:) <$> drinkUp)
+
+sip :: (Monoid r, Alternative m, MonadDrunk (Tap r (Maybe s)) m) => m s
+sip = drink >>= maybe empty pure
+{-# INLINE sip #-}
