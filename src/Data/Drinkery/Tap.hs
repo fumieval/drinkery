@@ -109,6 +109,9 @@ instance Monad (Barman r s m) where
 instance MonadTrans (Barman r s) where
   lift m = Barman $ \k -> Tap $ \rs -> m >>= \a -> unTap (k a) rs
 
+instance MonadIO m => MonadIO (Barman r s m) where
+  liftIO m = Barman $ \k -> Tap $ \rs -> liftIO m >>= \a -> unTap (k a) rs
+
 instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
   drinking f = lift (drinking f)
 
