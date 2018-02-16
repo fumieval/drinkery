@@ -1,40 +1,67 @@
-name:                drinkery
-version:             0.1
-synopsis:            Boozy streaming library
-description:         Boozy streaming library
-homepage:            https://github.com/fumieval/drinkery#readme
-license:             BSD3
-license-file:        LICENSE
-author:              Fumiaki Kinoshita
-maintainer:          fumiexcel@gmail.com
-copyright:           Copyright (c) 2017 Fumiaki Kinoshita
-category:            Data
-build-type:          Simple
-extra-source-files:  README.md
-cabal-version:       >=1.10
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: d4216805a5ee965a4f2f189c9ec7f0dbafe0bbedcbf3887bf98bae3928a6c274
 
-library
-  hs-source-dirs:      src
-  exposed-modules:
-    Data.Drinkery
-    Data.Drinkery.Class
-    Data.Drinkery.Glass
-    Data.Drinkery.Combinators
-    Data.Drinkery.Distiller
-    Data.Drinkery.Patron
-    Data.Drinkery.Tap
-  build-depends:       base >= 4.7 && < 5, transformers, mtl
-  ghc-options: -Wall
-  default-language:    Haskell2010
+name:           drinkery
+version:        0.1
+description:    Please see the README on Github at <https://github.com/fumieval/drinkery#readme>
+homepage:       https://github.com/fumieval/drinkery#readme
+bug-reports:    https://github.com/fumieval/drinkery/issues
+author:         Fumiaki Kinoshita
+maintainer:     fumiexcel@gmail.com
+copyright:      Copyright (c) 2017 Fumiaki Kinoshita
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
 
-benchmark benchmark
-  type:           exitcode-stdio-1.0
-  main-is:        benchmark.hs
-  ghc-options:    -O2
-  hs-source-dirs: benchmarks
-  build-depends: base, drinkery, gauge, pipes, machines, conduit, conduit-combinators, list-t, ListT
-  default-language:    Haskell2010
+extra-source-files:
+    README.md
 
 source-repository head
-  type:     git
+  type: git
   location: https://github.com/fumieval/drinkery
+
+library
+  hs-source-dirs:
+      src
+  ghc-options: -Wall
+  build-depends:
+      base
+    , mtl
+    , transformers
+  exposed-modules:
+      Data.Drinkery
+      Data.Drinkery.Class
+      Data.Drinkery.Glass
+      Data.Drinkery.Combinators
+      Data.Drinkery.Distiller
+      Data.Drinkery.Patron
+      Data.Drinkery.Tap
+  other-modules:
+      Paths_drinkery
+  default-language: Haskell2010
+
+benchmark benchmark
+  type: exitcode-stdio-1.0
+  main-is: benchmark.hs
+  hs-source-dirs:
+      benchmarks
+  ghc-options: -O2
+  build-depends:
+      ListT
+    , base
+    , conduit
+    , conduit-combinators
+    , drinkery
+    , gauge
+    , list-t
+    , machines
+    , mtl
+    , pipes
+    , transformers
+  other-modules:
+      Paths_drinkery
+  default-language: Haskell2010

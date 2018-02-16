@@ -1,0 +1,53 @@
+name:                drinkery
+version:             "0.1"
+github:              "fumieval/drinkery"
+license:             BSD3
+author:              "Fumiaki Kinoshita"
+maintainer:          "fumiexcel@gmail.com"
+copyright:           "Copyright (c) 2017 Fumiaki Kinoshita"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Data
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on Github at <https://github.com/fumieval/drinkery#readme>
+
+dependencies:
+- base
+- transformers
+- mtl
+
+library:
+  source-dirs:      src
+  exposed-modules:
+    - Data.Drinkery
+    - Data.Drinkery.Class
+    - Data.Drinkery.Glass
+    - Data.Drinkery.Combinators
+    - Data.Drinkery.Distiller
+    - Data.Drinkery.Patron
+    - Data.Drinkery.Tap
+  ghc-options: -Wall
+
+benchmarks:
+  benchmark:
+    main:           benchmark.hs
+    ghc-options:    -O2
+    source-dirs: benchmarks
+    dependencies:
+      - base
+      - drinkery
+      - gauge
+      - pipes
+      - machines
+      - conduit
+      - conduit-combinators
+      - list-t
+      - ListT
