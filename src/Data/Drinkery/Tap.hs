@@ -113,8 +113,8 @@ instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
   drinking f = lift (drinking f)
 
 -- | Produce one element. Orders are put off.
-yield :: (Monoid r, Applicative m) => s -> Barman r s m ()
-yield s = Barman $ \cont -> consTap s (cont ())
+pour :: (Monoid r, Applicative m) => s -> Barman r s m ()
+pour s = Barman $ \cont -> consTap s (cont ())
 
 -- | Accept orders and clear the queue.
 accept :: Monoid r => Barman r s m r
@@ -196,6 +196,6 @@ retractSommelier (Sommelier f) = go $ f (const $ consTap True) (repeatTap False)
   go m = unTap m () >>= \(a, k) -> when a (go k)
 {-# INLINE retractSommelier #-}
 
-pour :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
-pour = yield . pure
+yield :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
+yield = pour . pure
 {-# INLINE pour #-}
