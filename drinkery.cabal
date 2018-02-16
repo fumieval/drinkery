@@ -18,6 +18,7 @@ library
   exposed-modules:
     Data.Drinkery
     Data.Drinkery.Class
+    Data.Drinkery.Glass
     Data.Drinkery.Combinators
     Data.Drinkery.Distiller
     Data.Drinkery.Patron

@@ -18,9 +18,6 @@ module Data.Drinkery.Distiller
   , (++$)
   , (++&)
   -- * Stock distillers
-  , Still
-  , scanningMaybe
-  , filteringMaybe
   , mapping
   , traversing
   , filtering
@@ -89,43 +86,27 @@ t +& b = do
 t $& b = fmap fst $ runDrinker b t
 {-# INLINE ($&) #-}
 
--- | Mono in/out
-type Still p q r s m = Distiller (Tap p q) r s m
-
-scanningMaybe :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r (Maybe a) r (Maybe b) m
-scanningMaybe f b0 = consTap (Just b0) $ go b0 where
-  go b = Tap $ \r -> Drinker $ \tap -> do
-    (m, t') <- unTap tap r
-    case m of
-      Just a -> let !b' = f b a in return ((Just b', go b'), t')
-      Nothing -> return ((Nothing, go b), t')
-{-# INLINE scanningMaybe #-}
-
-filteringMaybe :: (Monoid r, Monad m) => (a -> Bool) -> Still r (Maybe a) r (Maybe a) m
-filteringMaybe = filtering . maybe True
-{-# INLINE filteringMaybe #-}
-
 -- | Create a request-preserving distiller.
-propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Still r a r b m) -> Still r a r b m
+propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Distiller (Tap r a) r b m) -> Distiller (Tap r a) r b m
 propagating m = Tap $ \r -> request r >> m
 {-# INLINE propagating #-}
 
-mapping :: (Monoid r, Monad m) => (a -> b) -> Still r a r b m
+mapping :: (Monoid r, Monad m) => (a -> b) -> Distiller (Tap r a) r b m
 mapping f = go where
   go = propagating $ drink >>= \a -> return (f a, go)
 {-# INLINE mapping #-}
 
-traversing :: (Monoid r, Monad m) => (a -> m b) -> Still r a r b m
+traversing :: (Monoid r, Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
 traversing f = go where
   go = propagating $ drink >>= \a -> lift (f a) >>= \b -> return (b, go)
 
-filtering :: (Monoid r, Monad m) => (a -> Bool) -> Still r a r a m
+filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
 filtering f = go where
   go = propagating $ drink >>= \a -> if f a
     then return (a, go)
     else unTap go mempty
 
-scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Still r a r b m
+scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
 scanning f b0 = consTap b0 $ go b0 where
   go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) drink
 {-# INLINE scanning #-}
