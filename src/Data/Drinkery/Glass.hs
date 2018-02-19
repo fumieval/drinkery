@@ -29,7 +29,7 @@ filter = filtering . maybe True
 {-# INLINE filter #-}
 
 -- | Consume all the content of a 'Tap' and return the elements as a list.
-drinkUp :: (Monoid r, Monad m) => Drinker (Tap r (Maybe s)) m [s]
+drinkUp :: (Monoid r, MonadDrunk (Tap r (Maybe s)) m) => m [s]
 drinkUp = drink >>= maybe (pure []) (\x -> (x:) <$> drinkUp)
 
 sip :: (Monoid r, Alternative m, MonadDrunk (Tap r (Maybe s)) m) => m s
