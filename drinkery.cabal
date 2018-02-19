@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1c6a6266f648653a1a0faca1feb36c81b1c7045fca34812552f343146154fd6f
+-- hash: e2ce7d6c3cd7a93dd0e8c2d8c62ab6132e620c67f25ec9f886189b615aed88b7
 
 name:           drinkery
 version:        0.1
@@ -29,7 +29,9 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      base
+      attoparsec
+    , base
+    , bytestring
     , mtl
     , transformers
   exposed-modules:
@@ -42,6 +44,7 @@ library
       Data.Drinkery.Patron
       Data.Drinkery.Tap
   other-modules:
+      Data.Drinkery.Tie.Attoparsec
       Paths_drinkery
   default-language: Haskell2010
 
@@ -53,7 +56,9 @@ benchmark benchmark
   ghc-options: -O2
   build-depends:
       ListT
+    , attoparsec
     , base
+    , bytestring
     , conduit
     , conduit-combinators
     , drinkery

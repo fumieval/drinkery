@@ -23,6 +23,8 @@ dependencies:
 - base
 - transformers
 - mtl
+- attoparsec
+- bytestring
 
 library:
   source-dirs:      src
@@ -35,6 +37,7 @@ library:
     - Data.Drinkery.IO
     - Data.Drinkery.Patron
     - Data.Drinkery.Tap
+    - Data.Drinkery.Tie.Attoparsec
   ghc-options: -Wall
 
 benchmarks:
