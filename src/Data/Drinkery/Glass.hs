@@ -20,7 +20,7 @@ scan f b0 = consTap (Just b0) $ go b0 where
       Nothing -> return ((Nothing, go b), t')
 {-# INLINE scan #-}
 
-map :: Monad m => (a -> b) -> SimpleStill a b m
+map :: (Functor t, Monoid r, Monad m) => (a -> b) -> Distiller (Tap r (t a)) r (t b) m
 map = mapping . fmap
 {-# INLINE map #-}
 
