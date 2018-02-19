@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e2ce7d6c3cd7a93dd0e8c2d8c62ab6132e620c67f25ec9f886189b615aed88b7
+-- hash: 819b8b0f85c73c9953422a4dd736b58f6a032f97d6bfad1356c2fea7be2963c6
 
 name:           drinkery
 version:        0.1
@@ -43,8 +43,9 @@ library
       Data.Drinkery.IO
       Data.Drinkery.Patron
       Data.Drinkery.Tap
-  other-modules:
       Data.Drinkery.Tie.Attoparsec
+      Data.Drinkery.Tie.ByteString
+  other-modules:
       Paths_drinkery
   default-language: Haskell2010
 

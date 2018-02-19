@@ -38,6 +38,7 @@ library:
     - Data.Drinkery.Patron
     - Data.Drinkery.Tap
     - Data.Drinkery.Tie.Attoparsec
+    - Data.Drinkery.Tie.ByteString
   ghc-options: -Wall
 
 benchmarks:
