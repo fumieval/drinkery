@@ -1,9 +1,11 @@
-{-# LANGUAGE LambdaCase, DeriveFunctor #-}
+{-# LANGUAGE LambdaCase, DeriveFunctor, FlexibleContexts #-}
 module Data.Drinkery.Patron where
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
+import Data.Drinkery.Class
+import Data.Drinkery.Tap
 
 -- | @Patron s@ is a simple consumer of @s@. Unlike 'Drinker', it can be
 -- partially run.
@@ -76,3 +78,9 @@ iterPatronT k = go where
     Left f -> k >>= go . f
     Right a -> return a
 {-# INLINE iterPatronT #-}
+
+lookAheadT :: (Monad m, MonadTrans t, Monoid r, MonadDrunk (Tap r s) (t m)) => Patron s m a -> t m a
+lookAheadT = go [] where
+  go xs m = lift (runPatron m) >>= \case
+    Right a -> a <$ mapM_ leftover (reverse xs)
+    Left f -> drink >>= \s -> go (s : xs) (f s)
