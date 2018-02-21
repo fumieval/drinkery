@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns, Rank2Types, FlexibleContexts #-}
-module Data.Drinkery.Glass where
+module Data.Drinkery.Still where
 
 import Control.Applicative
 import Data.Drinkery.Class

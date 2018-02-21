@@ -29,11 +29,11 @@ library:
   exposed-modules:
     - Data.Drinkery
     - Data.Drinkery.Class
-    - Data.Drinkery.Glass
     - Data.Drinkery.Combinators
     - Data.Drinkery.Distiller
     - Data.Drinkery.IO
     - Data.Drinkery.Patron
+    - Data.Drinkery.Still
     - Data.Drinkery.Tap
   ghc-options: -Wall
 
