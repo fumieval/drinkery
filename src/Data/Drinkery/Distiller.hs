@@ -22,6 +22,7 @@ module Data.Drinkery.Distiller
   , traversing
   , filtering
   , scanning
+  , repeating
   ) where
 
 import Control.Monad.Trans
@@ -110,3 +111,11 @@ scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Distiller (Tap r a) r b
 scanning f b0 = consTap b0 $ go b0 where
   go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) drink
 {-# INLINE scanning #-}
+
+-- | Create a request-preserving distiller from a drinker action.
+repeating :: (MonadDrunk (Tap r a) m, Monoid r) => m b -> Tap r b m
+repeating m = go where
+  go = Tap $ \r -> do
+    request r
+    a <- m
+    return (a, go)
