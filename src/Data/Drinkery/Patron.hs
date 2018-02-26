@@ -47,6 +47,9 @@ instance Monad m => MonadPlus (Patron s m) where
   mzero = empty
   mplus = (<|>)
 
+instance MonadIO m => MonadIO (Patron s m) where
+  liftIO = Patron . fmap Right . liftIO
+
 await :: Monad m => Patron s m s
 await = Patron $ pure $ Left pure
 {-# INLINE await #-}
