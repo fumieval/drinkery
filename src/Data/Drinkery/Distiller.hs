@@ -104,18 +104,21 @@ reservingTap :: MonadDrunk (Tap r a) m => (a -> m (s, Tap r s m)) -> Tap r s m
 reservingTap k = Tap $ \r -> do
   a <- drinking $ \t -> unTap t r
   k a
+{-# INLINE reservingTap #-}
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
 traversing f = go where
   go = reservingTap $ \a -> do
     b <- lift $ f a
     return (b, go)
+{-# INLINE traversing #-}
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
 filtering f = go where
   go = reservingTap $ \a -> if f a
     then return (a, go)
     else unTap go mempty
+{-# INLINE filtering #-}
 
 scanning :: Monad m => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
 scanning f b0 = go b0 where
