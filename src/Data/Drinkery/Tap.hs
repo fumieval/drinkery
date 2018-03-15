@@ -17,6 +17,7 @@ module Data.Drinkery.Tap (
   , makeTap
   , repeatTap
   , repeatTapM
+  , repeatTapM'
   -- * Barman
   , Barman(..)
   , yield
@@ -75,6 +76,10 @@ repeatTapM :: Applicative m => m s -> Tap r s m
 repeatTapM m = go where
   go = Tap $ const $ flip (,) go <$> m
 {-# INLINE repeatTapM #-}
+
+repeatTapM' :: Applicative m => m s -> Tap () s m
+repeatTapM' = repeatTapM
+{-# INLINE repeatTapM' #-}
 
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest

@@ -18,6 +18,7 @@ module Data.Drinkery.Distiller
   , (++$)
   , (++&)
   -- * Stock distillers
+  , echo
   , mapping
   , traversing
   , filtering
@@ -91,6 +92,9 @@ t $& b = fmap fst $ runDrinker b t
 propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Distiller (Tap r a) r b m) -> Distiller (Tap r a) r b m
 propagating m = Tap $ \r -> request r >> m
 {-# INLINE propagating #-}
+
+echo :: Monad m => Distiller (Tap r s) r s m
+echo = Tap $ \r -> drinking $ \t -> fmap (\(s, t') -> ((s, echo), t')) $ unTap t r
 
 mapping :: (Monoid r, Monad m) => (a -> b) -> Distiller (Tap r a) r b m
 mapping f = go where
