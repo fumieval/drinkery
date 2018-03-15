@@ -18,7 +18,7 @@ module Data.Drinkery.Distiller
   , (++$)
   , (++&)
   -- * Stock distillers
-  , reserve
+  , reservingTap
   , echo
   , mapping
   , traversing
@@ -99,26 +99,26 @@ mapping f = go where
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
-reserve :: MonadDrunk (Tap r a) m => (a -> m (s, Tap r s m)) -> Tap r s m
-reserve k = Tap $ \r -> do
+reservingTap :: MonadDrunk (Tap r a) m => (a -> m (s, Tap r s m)) -> Tap r s m
+reservingTap k = Tap $ \r -> do
   a <- drinking $ \t -> unTap t r
   k a
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
 traversing f = go where
-  go = reserve $ \a -> do
+  go = reservingTap $ \a -> do
     b <- lift $ f a
     return (b, go)
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
 filtering f = go where
-  go = reserve $ \a -> if f a
+  go = reservingTap $ \a -> if f a
     then return (a, go)
     else unTap go mempty
 
 scanning :: Monad m => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
 scanning f b0 = go b0 where
-  go b = reserve $ \a -> do
+  go b = reservingTap $ \a -> do
     let !b' = f b a
     return (b', go $ b')
 {-# INLINE scanning #-}
