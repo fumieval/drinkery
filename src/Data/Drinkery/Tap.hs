@@ -20,7 +20,6 @@ module Data.Drinkery.Tap (
   , repeatTapM'
   -- * Barman
   , Barman(..)
-  , yield
   , accept
   , inexhaustible
   , runBarman
@@ -211,7 +210,3 @@ retractSommelier :: Monad m => Sommelier () m s -> m ()
 retractSommelier (Sommelier f) = go $ f (const $ consTap True) (repeatTap False) where
   go m = unTap m () >>= \(a, k) -> when a (go k)
 {-# INLINE retractSommelier #-}
-
-yield :: (Semigroup r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
-yield = pour . pure
-{-# INLINE pour #-}
