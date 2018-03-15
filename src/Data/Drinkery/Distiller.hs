@@ -18,6 +18,7 @@ module Data.Drinkery.Distiller
   , (++$)
   , (++&)
   -- * Stock distillers
+  , reserve
   , echo
   , mapping
   , traversing
@@ -88,32 +89,37 @@ t +& b = do
 t $& b = fmap fst $ runDrinker b t
 {-# INLINE ($&) #-}
 
--- | Create a request-preserving distiller.
-propagating :: (Monoid r, Monad m) => Drinker (Tap r a) m (b, Distiller (Tap r a) r b m) -> Distiller (Tap r a) r b m
-propagating m = Tap $ \r -> request r >> m
-{-# INLINE propagating #-}
-
 echo :: Monad m => Distiller (Tap r s) r s m
-echo = Tap $ \r -> drinking $ \t -> fmap (\(s, t') -> ((s, echo), t')) $ unTap t r
+echo = mapping id
 
-mapping :: (Monoid r, Monad m) => (a -> b) -> Distiller (Tap r a) r b m
+mapping :: (Monad m) => (a -> b) -> Distiller (Tap r a) r b m
 mapping f = go where
-  go = propagating $ drink >>= \a -> return (f a, go)
+  go = Tap $ \r -> drinking $ \t -> fmap (\(s, t') -> ((f s, go), t')) $ unTap t r
 {-# INLINE mapping #-}
 
-traversing :: (Monoid r, Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
+-- | Get one element preserving a request
+reserve :: MonadDrunk (Tap r a) m => (a -> m (s, Tap r s m)) -> Tap r s m
+reserve k = Tap $ \r -> do
+  a <- drinking $ \t -> unTap t r
+  k a
+
+traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
 traversing f = go where
-  go = propagating $ drink >>= \a -> lift (f a) >>= \b -> return (b, go)
+  go = reserve $ \a -> do
+    b <- lift $ f a
+    return (b, go)
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
 filtering f = go where
-  go = propagating $ drink >>= \a -> if f a
+  go = reserve $ \a -> if f a
     then return (a, go)
     else unTap go mempty
 
-scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
-scanning f b0 = consTap b0 $ go b0 where
-  go b = propagating $ fmap (\a -> let !b' = f b a in (b', go $ b')) drink
+scanning :: Monad m => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
+scanning f b0 = go b0 where
+  go b = reserve $ \a -> do
+    let !b' = f b a
+    return (b', go $ b')
 {-# INLINE scanning #-}
 
 -- | Create a request-preserving distiller from a drinker action.
