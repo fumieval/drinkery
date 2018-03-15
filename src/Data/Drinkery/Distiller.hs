@@ -30,6 +30,7 @@ module Data.Drinkery.Distiller
 import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
+import Data.Semigroup
 import Data.Tuple
 
 -- | @Distiller tap m r s@ is a stream transducer which has four parameters:
@@ -123,7 +124,7 @@ scanning f b0 = go b0 where
 {-# INLINE scanning #-}
 
 -- | Create a request-preserving distiller from a drinker action.
-repeating :: (MonadDrunk (Tap r a) m, Monoid r) => m b -> Tap r b m
+repeating :: (MonadDrunk (Tap r a) m, Semigroup r) => m b -> Tap r b m
 repeating m = go where
   go = Tap $ \r -> do
     request r

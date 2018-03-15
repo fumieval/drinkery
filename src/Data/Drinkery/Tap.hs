@@ -46,6 +46,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Data.Semigroup
 import Data.Drinkery.Class
 
 -- | @'Tap' m r s@ is a non-monadic, endless producer of @s@. It takes a request
@@ -53,17 +54,17 @@ import Data.Drinkery.Class
 newtype Tap r s m = Tap { unTap :: r -> m (s, Tap r s m) }
 
 -- | Prepend a new element, delaying requests.
-consTap :: (Monoid r, Applicative m) => s -> Tap r s m -> Tap r s m
-consTap s t = Tap $ \r -> pure (s, Tap $ unTap t . mappend r)
+consTap :: (Semigroup r, Applicative m) => s -> Tap r s m -> Tap r s m
+consTap s t = Tap $ \r -> pure (s, Tap $ unTap t . (<>) r)
 {-# INLINE consTap #-}
 
 -- | Send a request to a 'Tap'.
-orderTap :: (Monoid r) => r -> Tap r s m -> Tap r s m
-orderTap r t = Tap $ \r' -> unTap t $! mappend r r'
+orderTap :: (Semigroup r) => r -> Tap r s m -> Tap r s m
+orderTap r t = Tap $ \r' -> unTap t $! r <> r'
 {-# INLINE orderTap #-}
 
 -- | Involve an action.
-makeTap :: (Monoid r, Monad m) => m (Tap r s m) -> Tap r s m
+makeTap :: (Monad m) => m (Tap r s m) -> Tap r s m
 makeTap m = Tap $ \r -> m >>= \t -> unTap t r
 {-# INLINE makeTap #-}
 
@@ -88,16 +89,16 @@ drink :: (Monoid r, MonadDrunk (Tap r s) m) => m s
 drink = drinking $ \t -> unTap t mempty
 {-# INLINE drink #-}
 
-leftover :: (Monoid r, MonadDrunk (Tap r s) m) => s -> m ()
+leftover :: (Semigroup r, MonadDrunk (Tap r s) m) => s -> m ()
 leftover s = drinking $ \t -> return ((), consTap s t)
 {-# INLINE leftover #-}
 
-request :: (Monoid r, MonadDrunk (Tap r s) m) => r -> m ()
+request :: (Semigroup r, MonadDrunk (Tap r s) m) => r -> m ()
 request r = drinking $ \t -> return ((), orderTap r t)
 {-# INLINE request #-}
 
 -- | Get one element without consuming.
-smell :: (Monoid r, MonadDrunk (Tap r s) m) => m s
+smell :: (Monoid r, Semigroup r, MonadDrunk (Tap r s) m) => m s
 smell = do
   s <- drink
   leftover s
@@ -128,7 +129,7 @@ instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
   drinking f = lift (drinking f)
 
 -- | Produce one element. Orders are put off.
-pour :: (Monoid r, Applicative m) => s -> Barman r s m ()
+pour :: (Semigroup r, Applicative m) => s -> Barman r s m ()
 pour s = Barman $ \cont -> consTap s (cont ())
 
 -- | Accept orders and clear the queue.
@@ -197,7 +198,7 @@ runBarman' = runBarman
 {-# INLINE runBarman' #-}
 
 -- | Run 'Sommelier' and terminate the stream with 'eof'.
-runSommelier :: (Monoid r, Applicative m, Alternative f) => Sommelier r m s -> Tap r (f s) m
+runSommelier :: (Semigroup r, Applicative m, Alternative f) => Sommelier r m s -> Tap r (f s) m
 runSommelier m = unSommelier m (consTap . pure) eof
 {-# INLINE runSommelier #-}
 
@@ -211,6 +212,6 @@ retractSommelier (Sommelier f) = go $ f (const $ consTap True) (repeatTap False)
   go m = unTap m () >>= \(a, k) -> when a (go k)
 {-# INLINE retractSommelier #-}
 
-yield :: (Monoid r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
+yield :: (Semigroup r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
 yield = pour . pure
 {-# INLINE pour #-}

@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Drinkery.Class
 import Data.Drinkery.Tap
+import Data.Semigroup
 
 -- | @Patron s@ is a simple consumer of @s@. Unlike 'Drinker', it can be
 -- partially run.
@@ -82,7 +83,7 @@ iterPatronT k = go where
     Right a -> return a
 {-# INLINE iterPatronT #-}
 
-lookAheadT :: (Monad m, MonadTrans t, Monoid r, MonadDrunk (Tap r s) (t m)) => Patron s m a -> t m a
+lookAheadT :: (Monad m, MonadTrans t, Monoid r, Semigroup r, MonadDrunk (Tap r s) (t m)) => Patron s m a -> t m a
 lookAheadT = go [] where
   go xs m = lift (runPatron m) >>= \case
     Right a -> a <$ mapM_ leftover (reverse xs)
