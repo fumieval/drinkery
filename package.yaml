@@ -1,5 +1,5 @@
 name:                drinkery
-version:             "0.1"
+version:             "0.2"
 github:              "fumieval/drinkery"
 license:             BSD3
 author:              "Fumiaki Kinoshita"
@@ -11,8 +11,8 @@ extra-source-files:
 - ChangeLog.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Data
+synopsis:            Boozy streaming library
+category:            Control
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
@@ -20,7 +20,7 @@ extra-source-files:
 description:         Please see the README on Github at <https://github.com/fumieval/drinkery#readme>
 
 dependencies:
-- base
+- base <= 5
 - transformers
 - mtl
 - exceptions
