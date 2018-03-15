@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns, Rank2Types, LambdaCase, FlexibleContexts, GeneralizedNewtypeDeriving, DeriveTraversable #-}
-module Data.Drinkery.Still where
+module Data.Drinkery.Glass where
 
 import Control.Applicative
 import Data.Drinkery.Class
