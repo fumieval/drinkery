@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f79a1dca0e420ca4939032219d9aaca622f9e5581e27d6e605f21911bf409a57
+-- hash: 9abd8202642a81c1d1c38a07b90737035282b7b5a35133622a4606a8a2565d8f
 
 name:           drinkery
 version:        0.1
@@ -30,6 +30,7 @@ library
   ghc-options: -Wall
   build-depends:
       base
+    , exceptions
     , mtl
     , transformers
   exposed-modules:
@@ -57,6 +58,7 @@ benchmark benchmark
     , conduit
     , conduit-combinators
     , drinkery
+    , exceptions
     , gauge
     , list-t
     , machines

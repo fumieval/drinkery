@@ -27,6 +27,7 @@ module Data.Drinkery.Distiller
   , repeating
   ) where
 
+import Control.Monad.Catch (onException, MonadCatch)
 import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
@@ -75,9 +76,9 @@ d ++& b = swap <$> runDrinker b d
 {-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.
-(+&) :: (Closable tap, Monad m) => tap m -> Drinker tap m a -> m a
+(+&) :: (Closable tap, MonadCatch m) => tap m -> Drinker tap m a -> m a
 t +& b = do
-  (a, t') <- runDrinker b t
+  (a, t') <- runDrinker b t `onException` close t
   close t'
   return a
 {-# INLINE (+&) #-}
