@@ -39,7 +39,10 @@ map' f = traversing $ (pure$!) . fmap f
 {-# INLINE map' #-}
 
 concatMap :: (Foldable f, Monad m) => (a -> f b) -> Pipe a b m
-concatMap f = inexhaustible $ reserve $ mapM_ yield . f
+concatMap f = go where
+  go = reservingTap $ \case
+    Just a -> unTap (foldr (consTap . Just) go (f a)) mempty
+    Nothing -> return (Nothing, go)
 {-# INLINE concatMap #-}
 
 filter :: Monad m => (a -> Bool) -> Pipe a a m
