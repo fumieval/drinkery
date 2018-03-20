@@ -59,11 +59,13 @@ take :: Monad m => Int -> Pipe a a m
 take = go where
   go 0 = repeatTap Nothing
   go n = reservingTap $ \a -> return (a, go (n - 1))
+{-# INLINE take #-}
 
 drop :: Monad m => Int -> Pipe a a m
 drop n = makeTap $ do
   replicateM_ n drink
   return echo
+{-# INLINE drop #-}
 
 takeWhile :: Monad m => (a -> Bool) -> Pipe a a m
 takeWhile p = go where
