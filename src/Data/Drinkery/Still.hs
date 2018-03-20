@@ -34,6 +34,10 @@ map :: (Functor t, Monad m) => (a -> b) -> Distiller (Tap r (t a)) r (t b) m
 map = mapping . fmap
 {-# INLINE map #-}
 
+map' :: (Functor t, Monad m) => (a -> b) -> Distiller (Tap r (t a)) r (t b) m
+map' f = traversing $ (pure$!) . fmap f
+{-# INLINE map' #-}
+
 concatMap :: (Foldable f, Monad m) => (a -> f b) -> Pipe a b m
 concatMap f = inexhaustible $ reserve $ mapM_ yield . f
 {-# INLINE concatMap #-}

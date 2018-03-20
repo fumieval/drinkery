@@ -97,7 +97,7 @@ echo = mapping id
 
 mapping :: (Monad m) => (a -> b) -> Distiller (Tap r a) r b m
 mapping f = go where
-  go = Tap $ \r -> drinking $ \t -> fmap (\(s, t') -> ((f s, go), t')) $ unTap t r
+  go = reservingTap $ \a -> pure (f a, go)
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
