@@ -34,9 +34,9 @@ map :: (Functor t, Monad m) => (a -> b) -> Distiller (Tap r (t a)) r (t b) m
 map = mapping . fmap
 {-# INLINE map #-}
 
-mapMaybe :: (Monad m) => (a -> Maybe b) -> Pipe a b m
-mapMaybe f = inexhaustible $ reserve $ mapM_ yield . f
-{-# INLINE mapMaybe #-}
+concatMap :: (Foldable f, Monad m) => (a -> f b) -> Pipe a b m
+concatMap f = inexhaustible $ reserve $ mapM_ yield . f
+{-# INLINE concatMap #-}
 
 filter :: Monad m => (a -> Bool) -> Pipe a a m
 filter = filtering . maybe True
