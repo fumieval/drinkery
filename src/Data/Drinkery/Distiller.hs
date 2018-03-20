@@ -93,6 +93,7 @@ t $& b = fmap fst $ runDrinker b t
 
 echo :: Monad m => Distiller (Tap r s) r s m
 echo = mapping id
+{-# INLINE echo #-}
 
 mapping :: (Monad m) => (a -> b) -> Distiller (Tap r a) r b m
 mapping f = go where

@@ -2,6 +2,7 @@
 module Data.Drinkery.Still where
 
 import Control.Applicative
+import Control.Monad (replicateM_)
 import Data.Drinkery.Class
 import Data.Drinkery.Distiller
 import Data.Drinkery.Tap
@@ -50,9 +51,39 @@ mapAccum f = go where
       Nothing -> return ((Nothing, go s), t')
 {-# INLINE mapAccum #-}
 
+traverse :: (Monad m) => (a -> m b) -> Pipe a b m
+traverse = traversing . Prelude.traverse
+{-# INLINE traverse #-}
+
+take :: Monad m => Int -> Pipe a a m
+take = go where
+  go 0 = repeatTap Nothing
+  go n = reservingTap $ \a -> return (a, go (n - 1))
+
+drop :: Monad m => Int -> Pipe a a m
+drop n = makeTap $ do
+  replicateM_ n drink
+  return echo
+
+takeWhile :: Monad m => (a -> Bool) -> Pipe a a m
+takeWhile p = go where
+  go = reservingTap $ \case
+    Just s | p s -> return (Just s, go)
+    _ -> return (Nothing, go)
+{-# INLINE takeWhile #-}
+
+dropWhile :: Monad m => (a -> Bool) -> Pipe a a m
+dropWhile p = go where
+  go = reservingTap $ \case
+    Just s | p s -> unTap go mempty
+    x -> return (x, go)
+{-# INLINE dropWhile #-}
+
 -- | Consume all the content of a 'Tap' and return the elements as a list.
 drinkUp :: (Monoid r, Semigroup r, MonadDrunk (Tap r (Maybe s)) m) => m [s]
-drinkUp = drink >>= maybe (pure []) (\x -> (x:) <$> drinkUp)
+drinkUp = go where
+  go = drink >>= maybe (pure []) (\x -> (x:) <$> go)
+{-# INLINE drinkUp #-}
 
 sip :: (Monoid r, Alternative m, MonadDrunk (Tap r (Maybe s)) m) => m s
 sip = drink >>= maybe empty pure
