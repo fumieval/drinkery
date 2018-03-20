@@ -18,6 +18,7 @@ module Data.Drinkery.Tap (
   , repeatTap
   , repeatTapM
   , repeatTapM'
+  , Joint(..)
   -- * Barman
   , Barman(..)
   , yield
@@ -104,6 +105,20 @@ smell = do
   leftover s
   return s
 {-# INLINE smell #-}
+
+-- | ('<*>') zips two taps.
+newtype Joint r m s = Joint { unJoint :: Tap r s m }
+
+instance Functor m => Functor (Joint r m) where
+  fmap f (Joint tap0) = Joint (go tap0) where
+    go tap = Tap $ \r -> fmap (\(s, t) -> (f s, go t)) $ unTap tap r
+
+instance Applicative m => Applicative (Joint r m) where
+  pure = Joint . repeatTap
+  Joint tapF <*> Joint tapA = Joint (go tapF tapA) where
+    go s t = Tap $ \r -> (\(f, s') (x, t') -> (f x, go s' t'))
+      <$> unTap s r
+      <*> unTap t r
 
 -- | Monadic producer
 newtype Barman r s m a = Barman { unBarman :: (a -> Tap r s m) -> Tap r s m }
