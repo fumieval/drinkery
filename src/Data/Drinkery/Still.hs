@@ -83,8 +83,8 @@ dropWhile p = go where
 
 -- | Consume all the content of a 'Tap' and return the elements as a list.
 drinkUp :: (Monoid r, Semigroup r, MonadDrunk (Tap r (Maybe s)) m) => m [s]
-drinkUp = go where
-  go = drink >>= maybe (pure []) (\x -> (x:) <$> go)
+drinkUp = go id where
+  go f = drink >>= maybe (pure $ f []) (\x -> go $ f . (x:))
 {-# INLINE drinkUp #-}
 
 sip :: (Monoid r, Alternative m, MonadDrunk (Tap r (Maybe s)) m) => m s
