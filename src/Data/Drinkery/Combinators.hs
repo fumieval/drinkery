@@ -13,9 +13,11 @@ module Data.Drinkery.Combinators
   , foldMFrom
   , traverseFrom_
   , drainFrom
+  , lastFrom
   )
 where
 
+import Control.Applicative
 import Control.Monad hiding (foldM)
 import qualified Data.Foldable as F
 
@@ -48,3 +50,10 @@ drainFrom :: (Foldable t, Monad m) => m (t a) -> m ()
 drainFrom m = go where
   go = m >>= \t -> unless (null t) go
 {-# INLINE drainFrom #-}
+
+lastFrom :: (Alternative t, Foldable t, Monad m) => m (t a) -> m (Maybe a)
+lastFrom m = go empty where
+  go l = m >>= \t -> if null t
+    then return $! foldr (\x r _ -> r (Just x)) id l Nothing
+    else go t
+{-# INLINE lastFrom #-}
