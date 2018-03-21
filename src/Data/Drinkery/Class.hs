@@ -13,12 +13,14 @@
 module Data.Drinkery.Class
   ( Drinker(..)
   , mapDrinker
+  , runDrinker
   , MonadDrunk(..)
   , CloseRequest(..)
   , Closable(..)) where
 
+import Control.Monad
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Cont
+import Control.Monad.Trans.Cont hiding (cont)
 import Control.Monad.Trans.Maybe
 import qualified Control.Monad.Trans.Reader as Reader
 import qualified Control.Monad.Trans.State.Lazy as Lazy
@@ -33,39 +35,31 @@ import Control.Monad.Writer.Class
 import Control.Monad.State.Class
 
 -- | A 'Drinker' is a stream consumer monad.
-newtype Drinker t m a = Drinker { runDrinker :: t m -> m (a, t m) }
+newtype Drinker t m a = Drinker
+  { unDrinker :: forall r. t m -> (a -> t m -> m r) -> m r }
 
 mapDrinker :: (forall x. m x -> m x) -> Drinker t m a -> Drinker t m a
-mapDrinker t = Drinker . fmap t . runDrinker
-{-# INLINE mapDrinker #-}
+mapDrinker t (Drinker d) = Drinker $ \tap k -> t (d tap k)
 
-instance (Functor m) => Functor (Drinker s m) where
-  fmap f m = Drinker $ \s -> fmap (\(a, s') -> (f a, s')) $ runDrinker m s
-  {-# INLINE fmap #-}
+runDrinker :: Applicative m => Drinker t m a -> t m -> m (a, t m)
+runDrinker (Drinker d) t = d t (\a t' -> pure (a, t'))
 
-instance (Functor m, Monad m) => Applicative (Drinker s m) where
-  pure a = Drinker $ \s -> return (a, s)
-  {-# INLINE pure #-}
-  Drinker mf <*> Drinker mx = Drinker $ \ s -> do
-    (f, s') <- mf s
-    (x, s'') <- mx s'
-    return (f x, s'')
-  {-# INLINE (<*>) #-}
+instance Functor (Drinker s m) where
+  fmap f m = Drinker $ \s k -> unDrinker m s (\a s' -> k (f a) s')
+
+instance Applicative (Drinker s m) where
+  pure a = Drinker $ \s k -> k a s
+  Drinker mf <*> Drinker mx = Drinker
+    $ \s k -> mf s $ \f s' -> mx s' $ \x -> k (f x)
   m *> k = m >>= \_ -> k
-  {-# INLINE (*>) #-}
 
-instance (Monad m) => Monad (Drinker s m) where
-  return a = Drinker $ \s -> return (a, s)
+instance Monad (Drinker s m) where
+  return = pure
   {-# INLINE return #-}
-  m >>= k  = Drinker $ \s -> do
-    (a, s') <- runDrinker m s
-    runDrinker (k a) s'
-  {-# INLINE (>>=) #-}
-  fail str = Drinker $ \_ -> fail str
-  {-# INLINE fail #-}
+  m >>= k = Drinker $ \s cont -> unDrinker m s $ \a s' -> unDrinker (k a) s' cont
 
 instance MonadTrans (Drinker t) where
-  lift m = Drinker $ \t -> m >>= \a -> return (a, t)
+  lift m = Drinker $ \t k -> m >>= \a -> k a t
   {-# INLINE lift #-}
 
 instance MonadIO m => MonadIO (Drinker t m) where
@@ -83,19 +77,19 @@ instance MonadState s m => MonadState s (Drinker t m) where
 instance MonadWriter s m => MonadWriter s (Drinker t m) where
   writer = lift . writer
   tell   = lift . tell
-  listen m = Drinker $ \s -> do
+  listen m = Drinker $ \s k -> do
     ((a, s'), w) <- listen (runDrinker m s)
-    return ((a, w), s')
-  pass m = Drinker $ \s -> pass $ do
+    k (a, w) s'
+  pass m = Drinker $ \s k -> join $ pass $ do
     ((a, f), s') <- runDrinker m s
-    return ((a, s'), f)
+    return (k a s', f)
 
 -- | Monads that drink
 class Monad m => MonadDrunk t m | m -> t where
   drinking :: (forall n. Monad n => t n -> n (a, t n)) -> m a
 
 instance Monad m => MonadDrunk t (Drinker t m) where
-  drinking = Drinker
+  drinking f = Drinker $ \t k -> f t >>= uncurry k
 
 instance MonadDrunk t m => MonadDrunk t (Reader.ReaderT x m) where
   drinking f = lift (drinking f)

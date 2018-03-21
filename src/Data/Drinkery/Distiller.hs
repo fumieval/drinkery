@@ -32,7 +32,6 @@ import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
 import Data.Semigroup
-import Data.Tuple
 
 -- | @Distiller tap m r s@ is a stream transducer which has four parameters:
 --
@@ -57,8 +56,8 @@ infixl 8 ++$
 -- * @+@ Left operand is a tap.
 -- * @+@ Returns a tap (along with the result).
 -- * @&@ Right operand is a Drinker.
-(++&) :: (Functor m) => tap m -> Drinker tap m a -> m (tap m, a)
-d ++& b = swap <$> runDrinker b d
+(++&) :: (Applicative m) => tap m -> Drinker tap m a -> m (tap m, a)
+d ++& b = unDrinker b d $ \a t -> pure (t, a)
 {-# INLINE (++&) #-}
 
 -- | Attach a distiller to a tap.
@@ -69,10 +68,10 @@ d ++& b = swap <$> runDrinker b d
 -- * @+@ Returns a tap.
 -- * @$@ Right operand is a distiller.
 --
-(++$) :: (Functor m) => tap m -> Distiller tap r s m -> Tap r s m
+(++$) :: (Applicative m) => tap m -> Distiller tap r s m -> Tap r s m
 (++$) = go where -- looks strange, but seems to perform better (GHC 8.2.2)
-  go t d = Tap $ \r -> (\((s, d'), t') -> (s, go t' d'))
-    <$> runDrinker (unTap d r) t
+  go t d = Tap $ \r -> unDrinker (unTap d r) t
+    $ \(s, d') t' -> pure (s, go t' d')
 {-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.

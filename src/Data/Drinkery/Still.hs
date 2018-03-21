@@ -17,11 +17,9 @@ type Pipe a b m = forall r. (Monoid r, Semigroup r) => Still r a r b m
 
 scan :: Monad m => (b -> a -> b) -> b -> Pipe a b m
 scan f b0 = consTap (Just b0) $ go b0 where
-  go b = Tap $ \r -> Drinker $ \tap -> do
-    (m, t') <- unTap tap r
-    case m of
-      Just a -> let !b' = f b a in return ((Just b', go b'), t')
-      Nothing -> return ((Nothing, go b), t')
+  go b = reservingTap $ \case
+    Just a -> let !b' = f b a in return (Just b', go b')
+    Nothing -> return (Nothing, go b)
 {-# INLINE scan #-}
 
 reserve :: (Monoid r, MonadDrunk (Cask r s) m)
@@ -51,11 +49,9 @@ filter = filtering . maybe True
 
 mapAccum :: Monad m => (s -> a -> (s, b)) -> s -> Pipe a b m
 mapAccum f = go where
-  go s = Tap $ \r -> Drinker $ \tap -> do
-    (m, t') <- unTap tap r
-    case m of
-      Just a -> let (s', b) = f s a in return ((Just b, go s'), t')
-      Nothing -> return ((Nothing, go s), t')
+  go s = reservingTap $ \case
+    Just a -> let (s', b) = f s a in return (Just b, go s')
+    Nothing -> return (Nothing, go s)
 {-# INLINE mapAccum #-}
 
 traverse :: (Monad m) => (a -> m b) -> Pipe a b m
