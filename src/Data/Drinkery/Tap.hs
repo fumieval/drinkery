@@ -159,7 +159,9 @@ accept = Barman $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 -- @inexhaustible :: 'Barman' r s ('Drinker' tap m) x -> 'Distiller' tap m r s@
 --
 inexhaustible :: Barman r s m x -> Tap r s m
-inexhaustible t = unBarman t $ const $ inexhaustible t
+inexhaustible t = go where
+  go = unBarman t $ const go
+{-# INLINE inexhaustible #-}
 
 -- | Backtracking producer a.k.a. "ListT done right".
 newtype Sommelier r m s = Sommelier
