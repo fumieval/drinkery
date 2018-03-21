@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c680196ca0c264db17dcb6cca154fa3a64e957e2d4859e8dd024c4b302e0f731
+-- hash: 8721a9c033d203203693686a359a7d6d4f5026ebbaaedd5de20c604fcbee478b
 
 name:           drinkery
-version:        0.2
+version:        0.2.1
 synopsis:       Boozy streaming library
 description:    Please see the README on Github at <https://github.com/fumieval/drinkery#readme>
 category:       Control
