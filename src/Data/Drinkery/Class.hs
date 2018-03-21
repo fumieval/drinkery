@@ -45,12 +45,12 @@ runDrinker :: Applicative m => Drinker t m a -> t m -> m (a, t m)
 runDrinker (Drinker d) t = d t (\a t' -> pure (a, t'))
 
 instance Functor (Drinker s m) where
-  fmap f m = Drinker $ \s k -> unDrinker m s (\a s' -> k (f a) s')
+  fmap f m = Drinker $ \s k -> unDrinker m s (k . f)
 
 instance Applicative (Drinker s m) where
   pure a = Drinker $ \s k -> k a s
   Drinker mf <*> Drinker mx = Drinker
-    $ \s k -> mf s $ \f s' -> mx s' $ \x -> k (f x)
+    $ \s k -> mf s $ \f s' -> mx s' $ k . f
   m *> k = m >>= \_ -> k
 
 instance Monad (Drinker s m) where
@@ -60,7 +60,6 @@ instance Monad (Drinker s m) where
 
 instance MonadTrans (Drinker t) where
   lift m = Drinker $ \t k -> m >>= \a -> k a t
-  {-# INLINE lift #-}
 
 instance MonadIO m => MonadIO (Drinker t m) where
   liftIO = lift . liftIO
@@ -90,6 +89,7 @@ class Monad m => MonadDrunk t m | m -> t where
 
 instance Monad m => MonadDrunk t (Drinker t m) where
   drinking f = Drinker $ \t k -> f t >>= uncurry k
+  {-# INLINE drinking #-}
 
 instance MonadDrunk t m => MonadDrunk t (Reader.ReaderT x m) where
   drinking f = lift (drinking f)

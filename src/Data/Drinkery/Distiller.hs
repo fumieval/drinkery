@@ -100,10 +100,10 @@ mapping f = go where
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
-reservingTap :: MonadDrunk (Tap r a) m => (a -> m (s, Tap r s m)) -> Tap r s m
-reservingTap k = Tap $ \r -> do
-  a <- drinking $ \t -> unTap t r
-  k a
+reservingTap :: Monad m => (a -> Drinker (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
+reservingTap k = Tap $ \r -> Drinker $ \t cont -> do
+  (a, t') <- unTap t r
+  unDrinker (k a) t' cont
 {-# INLINE reservingTap #-}
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
