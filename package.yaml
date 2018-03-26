@@ -34,7 +34,7 @@ library:
     - Data.Drinkery.Distiller
     - Data.Drinkery.IO
     - Data.Drinkery.Awaiter
-    - Data.Drinkery.Still
+    - Data.Drinkery.Finite
     - Data.Drinkery.Tap
   ghc-options: -Wall
 

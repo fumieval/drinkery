@@ -1,19 +1,19 @@
 {-# LANGUAGE BangPatterns, Rank2Types, FlexibleContexts, LambdaCase #-}
-module Data.Drinkery.Still where
+module Data.Drinkery.Finite where
 
-import Control.Applicative
 import Control.Monad (replicateM_)
 import Data.Drinkery.Class
 import Data.Drinkery.Distiller
 import Data.Drinkery.Tap
 import Data.Semigroup
 
+-- | Finite source
 type Source r s = Tap r (Maybe s)
 
 -- | Mono in/out
-type Still p q r s m = Source r s (Sink (Source p q) m)
+type Converter p q r s m = Source r s (Sink (Source p q) m)
 
-type Pipe a b m = forall r. (Monoid r, Semigroup r) => Still r a r b m
+type Pipe a b m = forall r. (Monoid r, Semigroup r) => Converter r a r b m
 
 scan :: Monad m => (b -> a -> b) -> b -> Pipe a b m
 scan f b0 = consTap (Just b0) $ go b0 where
@@ -89,7 +89,3 @@ drinkUp :: (Monoid r, Semigroup r, MonadSink (Tap r (Maybe s)) m) => m [s]
 drinkUp = go id where
   go f = consume >>= maybe (pure $ f []) (\x -> go $ f . (x:))
 {-# INLINE drinkUp #-}
-
-sip :: (Monoid r, Alternative m, MonadSink (Tap r (Maybe s)) m) => m s
-sip = consume >>= maybe empty pure
-{-# INLINE sip #-}
