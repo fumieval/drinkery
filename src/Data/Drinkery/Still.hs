@@ -8,10 +8,10 @@ import Data.Drinkery.Distiller
 import Data.Drinkery.Tap
 import Data.Semigroup
 
-type Cask r s = Tap r (Maybe s)
+type Source r s = Tap r (Maybe s)
 
 -- | Mono in/out
-type Still p q r s m = Cask r s (Sink (Cask p q) m)
+type Still p q r s m = Source r s (Sink (Source p q) m)
 
 type Pipe a b m = forall r. (Monoid r, Semigroup r) => Still r a r b m
 
@@ -22,7 +22,7 @@ scan f b0 = consTap (Just b0) $ go b0 where
     Nothing -> return (Nothing, go b)
 {-# INLINE scan #-}
 
-reserve :: (Monoid r, MonadSink (Cask r s) m)
+reserve :: (Monoid r, MonadSink (Source r s) m)
     => (s -> Producer r (Maybe t) m ()) -> Producer r (Maybe t) m ()
 reserve k = Producer $ \cont -> Tap $ \r -> receiving (\t -> unTap t r) >>= \case
   Nothing -> return (Nothing, cont ())
