@@ -29,7 +29,7 @@ module Data.Drinkery.Tap (
   , produce
   -- * ListT
   , ListT(..)
-  , taste
+  , sample
   , inquire
   , tapListT
   , tapListT'
@@ -196,8 +196,8 @@ instance MonadSink t m => MonadSink t (ListT p m) where
   receiving f = lift (receiving f)
 
 -- | Take all the elements in a 'Foldable' container.
-taste :: Foldable f => f s -> ListT r m s
-taste xs = ListT $ \c e -> foldr c e xs
+sample :: Foldable f => f s -> ListT r m s
+sample xs = ListT $ \c e -> foldr c e xs
 
 -- | Get a request.
 inquire :: Monoid r => ListT r m r

@@ -14,7 +14,7 @@ A barman can also accept requests from the downstream using `accept`.
 
 `ListT r` is a list-like backtracking monad (also known as ListT done right).
 It is useful for sampling elements of containers with effects.
-`taste :: Foldable f => f s -> ListT r m s` samples elements in any `Foldable`
+`sample :: Foldable f => f s -> ListT r m s` samples elements in any `Foldable`
 container. `inquire` to interact with the downstream.
 
 `Tap` is an endless producer. This can be connected to a 'Patron' or a 'Distiller'.
