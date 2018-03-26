@@ -7,10 +7,10 @@ import Data.IORef
 
 -- | Create a popper from a 'Tap'.
 --
--- @tapPopper :: CloseRequest r => Tap r s IO -> GivesPopper@
+-- @popperTap :: CloseRequest r => Tap r s IO -> GivesPopper@
 --
-tapPopper :: (Monoid r, CloseRequest r) => Tap r s IO -> (IO s -> IO ()) -> IO ()
-tapPopper tap0 needsPopper = do
+popperTap :: (Monoid r, CloseRequest r) => Tap r s IO -> (IO s -> IO ()) -> IO ()
+popperTap tap0 needsPopper = do
   vTap <- newIORef tap0
   let popper = do
         t <- readIORef vTap
