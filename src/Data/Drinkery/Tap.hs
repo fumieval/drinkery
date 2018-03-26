@@ -26,7 +26,7 @@ module Data.Drinkery.Tap (
   , inexhaustible
   , tapProducer
   , tapProducer'
-  , pour
+  , produce
   -- * ListT
   , ListT(..)
   , taste
@@ -147,8 +147,8 @@ instance MonadSink t m => MonadSink t (Producer p q m) where
   receiving f = lift (receiving f)
 
 -- | Produce one element. Orders are put off.
-pour :: (Semigroup r, Applicative m) => s -> Producer r s m ()
-pour s = Producer $ \cont -> consTap s (cont ())
+produce :: (Semigroup r, Applicative m) => s -> Producer r s m ()
+produce s = Producer $ \cont -> consTap s (cont ())
 
 -- | Accept orders and clear the queue.
 accept :: Monoid r => Producer r s m r
@@ -233,5 +233,5 @@ retractListT (ListT f) = go $ f (const $ consTap True) (repeatTap False) where
 {-# INLINE retractListT #-}
 
 yield :: (Semigroup r, Applicative f, Applicative m) => s -> Producer r (f s) m ()
-yield = pour . pure
-{-# INLINE pour #-}
+yield = produce . pure
+{-# INLINE yield #-}
