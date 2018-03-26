@@ -24,13 +24,13 @@ by `runProducer` and `runListT` respectively.
 
 ## Consumer
 
-`Drinker tap` is a monad transformer which consumes `tap`.
+`Sink tap` is a monad transformer which consumes `tap`.
 
 * `drink :: m s` Get one element.
 * `leftover :: s -> m ()` Leave one element.
 * `request :: r -> m ()` Send a request.
 
-`(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Drinker (Tap r s) m a -> m a`
+`(+&) :: (Monoid r, CloseRequest r, Monad m) => Tap r s m -> Sink (Tap r s) m a -> m a`
 connects a tap with a drinker.
 
 ## Transducer
@@ -41,7 +41,7 @@ connects a tap with a drinker.
 * Receives `r`
 * Produces `s`
 
-It is actually a `Tap` where the underlying monad is `Drinker`.
+It is actually a `Tap` where the underlying monad is `Sink`.
 
 There are two composition operators:
 
@@ -63,9 +63,9 @@ Still there are some differences:
 
 * `Distiller` does not terminate.
 * Unlike pipes' `>->`, `++$` propagates inner requests:
-    * `(++$) :: Monad m => Distiller tap m p q -> Distiller (Tap p q) (Drinker tap m) r s -> Distiller tap m r s`
+    * `(++$) :: Monad m => Distiller tap m p q -> Distiller (Tap p q) (Sink tap m) r s -> Distiller tap m r s`
     * `(>->) :: Proxy a' a () b m r	-> Proxy () b c' c m r -> Proxy a' a c' c m r`
-* `Drinker`, the consumer monad, may leave unconsumed inputs.
+* `Sink`, the consumer monad, may leave unconsumed inputs.
 * `drinkery` has much fewer operators.
 
 ### conduit

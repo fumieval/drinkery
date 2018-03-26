@@ -1,7 +1,7 @@
 {-# LANGUAGE Rank2Types, BangPatterns, LambdaCase, FlexibleContexts #-}
 -----------------------------------------------------------------------
 --
--- Module      :  Data.Drinkery.Distiller
+-- Module      :  Data.Sinky.Distiller
 -- Copyright   :  (c) Fumiaki Kinoshita 2017
 -- License     :  BSD3
 --
@@ -42,22 +42,22 @@ import Data.Semigroup
 --
 -- This is also a 'Tap'.
 --
-type Distiller tap r s m = Tap r s (Drinker tap m)
+type Distiller tap r s m = Tap r s (Sink tap m)
 
 infix 6 +&
 infixr 7 $&
 infixr 7 ++&
 infixl 8 ++$
 
--- | Connect a tap with a Drinker. Flipped 'runDrinker'.
+-- | Connect a tap with a Sink. Flipped 'runSink'.
 --
 -- Mnemonic:
 --
 -- * @+@ Left operand is a tap.
 -- * @+@ Returns a tap (along with the result).
--- * @&@ Right operand is a Drinker.
-(++&) :: (Applicative m) => tap m -> Drinker tap m a -> m (tap m, a)
-d ++& b = unDrinker b d $ \a t -> pure (t, a)
+-- * @&@ Right operand is a Sink.
+(++&) :: (Applicative m) => tap m -> Sink tap m a -> m (tap m, a)
+d ++& b = unSink b d $ \a t -> pure (t, a)
 {-# INLINE (++&) #-}
 
 -- | Attach a distiller to a tap.
@@ -70,24 +70,24 @@ d ++& b = unDrinker b d $ \a t -> pure (t, a)
 --
 (++$) :: (Applicative m) => tap m -> Distiller tap r s m -> Tap r s m
 (++$) = go where -- looks strange, but seems to perform better (GHC 8.2.2)
-  go t d = Tap $ \r -> unDrinker (unTap d r) t
+  go t d = Tap $ \r -> unSink (unTap d r) t
     $ \(s, d') t' -> pure (s, go t' d')
 {-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.
-(+&) :: (Closable tap, MonadCatch m) => tap m -> Drinker tap m a -> m a
+(+&) :: (Closable tap, MonadCatch m) => tap m -> Sink tap m a -> m a
 t +& b = do
-  (a, t') <- runDrinker b t `onException` close t
+  (a, t') <- runSink b t `onException` close t
   close t'
   return a
 {-# INLINE (+&) #-}
 
 -- | Like ('+&') but discards the used tap.
 --
--- @($&) :: Distiller tap m r s -> Drinker (Tap r s) (Drinker tap m) a -> Drinker tap m a@
+-- @($&) :: Distiller tap m r s -> Sink (Tap r s) (Sink tap m) a -> Sink tap m a@
 --
-($&) :: (Monad m) => tap m -> Drinker tap m a -> m a
-t $& b = fmap fst $ runDrinker b t
+($&) :: (Monad m) => tap m -> Sink tap m a -> m a
+t $& b = fmap fst $ runSink b t
 {-# INLINE ($&) #-}
 
 echo :: Monad m => Distiller (Tap r s) r s m
@@ -100,10 +100,10 @@ mapping f = go where
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
-reservingTap :: Monad m => (a -> Drinker (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
-reservingTap k = Tap $ \r -> Drinker $ \t cont -> do
+reservingTap :: Monad m => (a -> Sink (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
+reservingTap k = Tap $ \r -> Sink $ \t cont -> do
   (a, t') <- unTap t r
-  unDrinker (k a) t' cont
+  unSink (k a) t' cont
 {-# INLINE reservingTap #-}
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
@@ -128,7 +128,7 @@ scanning f b0 = go b0 where
 {-# INLINE scanning #-}
 
 -- | Create a request-preserving distiller from a drinker action.
-repeating :: (MonadDrunk (Tap r a) m, Semigroup r) => m b -> Tap r b m
+repeating :: (MonadSink (Tap r a) m, Semigroup r) => m b -> Tap r b m
 repeating m = go where
   go = Tap $ \r -> do
     request r

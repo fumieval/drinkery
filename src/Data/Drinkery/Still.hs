@@ -11,7 +11,7 @@ import Data.Semigroup
 type Cask r s = Tap r (Maybe s)
 
 -- | Mono in/out
-type Still p q r s m = Cask r s (Drinker (Cask p q) m)
+type Still p q r s m = Cask r s (Sink (Cask p q) m)
 
 type Pipe a b m = forall r. (Monoid r, Semigroup r) => Still r a r b m
 
@@ -22,9 +22,9 @@ scan f b0 = consTap (Just b0) $ go b0 where
     Nothing -> return (Nothing, go b)
 {-# INLINE scan #-}
 
-reserve :: (Monoid r, MonadDrunk (Cask r s) m)
+reserve :: (Monoid r, MonadSink (Cask r s) m)
     => (s -> Producer r (Maybe t) m ()) -> Producer r (Maybe t) m ()
-reserve k = Producer $ \cont -> Tap $ \r -> drinking (\t -> unTap t r) >>= \case
+reserve k = Producer $ \cont -> Tap $ \r -> receiving (\t -> unTap t r) >>= \case
   Nothing -> return (Nothing, cont ())
   Just s -> unTap (unProducer (k s) cont) mempty
 
@@ -85,11 +85,11 @@ dropWhile p = go where
 {-# INLINE dropWhile #-}
 
 -- | Consume all the content of a 'Tap' and return the elements as a list.
-drinkUp :: (Monoid r, Semigroup r, MonadDrunk (Tap r (Maybe s)) m) => m [s]
+drinkUp :: (Monoid r, Semigroup r, MonadSink (Tap r (Maybe s)) m) => m [s]
 drinkUp = go id where
   go f = drink >>= maybe (pure $ f []) (\x -> go $ f . (x:))
 {-# INLINE drinkUp #-}
 
-sip :: (Monoid r, Alternative m, MonadDrunk (Tap r (Maybe s)) m) => m s
+sip :: (Monoid r, Alternative m, MonadSink (Tap r (Maybe s)) m) => m s
 sip = drink >>= maybe empty pure
 {-# INLINE sip #-}

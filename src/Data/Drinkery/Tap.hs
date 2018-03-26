@@ -86,20 +86,20 @@ repeatTapM' = repeatTapM
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
 
-drink :: (Monoid r, MonadDrunk (Tap r s) m) => m s
-drink = drinking $ \t -> unTap t mempty
+drink :: (Monoid r, MonadSink (Tap r s) m) => m s
+drink = receiving $ \t -> unTap t mempty
 {-# INLINE drink #-}
 
-leftover :: (Semigroup r, MonadDrunk (Tap r s) m) => s -> m ()
-leftover s = drinking $ \t -> return ((), consTap s t)
+leftover :: (Semigroup r, MonadSink (Tap r s) m) => s -> m ()
+leftover s = receiving $ \t -> return ((), consTap s t)
 {-# INLINE leftover #-}
 
-request :: (Semigroup r, MonadDrunk (Tap r s) m) => r -> m ()
-request r = drinking $ \t -> return ((), orderTap r t)
+request :: (Semigroup r, MonadSink (Tap r s) m) => r -> m ()
+request r = receiving $ \t -> return ((), orderTap r t)
 {-# INLINE request #-}
 
 -- | Get one element without consuming.
-smell :: (Monoid r, Semigroup r, MonadDrunk (Tap r s) m) => m s
+smell :: (Monoid r, Semigroup r, MonadSink (Tap r s) m) => m s
 smell = do
   s <- drink
   leftover s
@@ -143,8 +143,8 @@ instance MonadTrans (Producer r s) where
 instance MonadIO m => MonadIO (Producer r s m) where
   liftIO m = Producer $ \k -> Tap $ \rs -> liftIO m >>= \a -> unTap (k a) rs
 
-instance MonadDrunk t m => MonadDrunk t (Producer p q m) where
-  drinking f = lift (drinking f)
+instance MonadSink t m => MonadSink t (Producer p q m) where
+  receiving f = lift (receiving f)
 
 -- | Produce one element. Orders are put off.
 pour :: (Semigroup r, Applicative m) => s -> Producer r s m ()
@@ -156,7 +156,7 @@ accept = Producer $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 
 -- | Create a infinite 'Tap' from a 'Producer'.
 --
--- @inexhaustible :: 'Producer' r s ('Drinker' tap m) x -> 'Distiller' tap m r s@
+-- @inexhaustible :: 'Producer' r s ('Sink' tap m) x -> 'Distiller' tap m r s@
 --
 inexhaustible :: Producer r s m x -> Tap r s m
 inexhaustible t = go where
@@ -192,8 +192,8 @@ instance MonadTrans (ListT r) where
 instance MonadIO m => MonadIO (ListT r m) where
   liftIO m = ListT $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
-instance MonadDrunk t m => MonadDrunk t (ListT p m) where
-  drinking f = lift (drinking f)
+instance MonadSink t m => MonadSink t (ListT p m) where
+  receiving f = lift (receiving f)
 
 -- | Take all the elements in a 'Foldable' container.
 taste :: Foldable f => f s -> ListT r m s

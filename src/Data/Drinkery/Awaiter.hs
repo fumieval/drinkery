@@ -8,7 +8,7 @@ import Data.Drinkery.Class
 import Data.Drinkery.Tap
 import Data.Semigroup
 
--- | @Awaiter s@ is a simple consumer of @s@. Unlike 'Drinker', it can be
+-- | @Awaiter s@ is a simple consumer of @s@. Unlike 'Sink', it can be
 -- partially run.
 --
 -- 'serving' distributes each input to a list of 'Awaiter's until all the patrons
@@ -75,7 +75,7 @@ iterAwaiter k = go where
     Right a -> return a
 {-# INLINE iterAwaiter #-}
 
--- | @iterAwaiterT drink :: Awaiter s m a -> Drinker s m a@
+-- | @iterAwaiterT consume :: Awaiter s m a -> Sink s m a@
 iterAwaiterT :: (Monad m, MonadTrans t, Monad (t m)) => t m s -> Awaiter s m a -> t m a
 iterAwaiterT k = go where
   go m = lift (runAwaiter m) >>= \case
@@ -83,7 +83,7 @@ iterAwaiterT k = go where
     Right a -> return a
 {-# INLINE iterAwaiterT #-}
 
-lookAheadT :: (Monad m, MonadTrans t, Monoid r, Semigroup r, MonadDrinker (Tap r s) (t m)) => Awaiter s m a -> t m a
+lookAheadT :: (Monad m, MonadTrans t, Monoid r, Semigroup r, MonadSink (Tap r s) (t m)) => Awaiter s m a -> t m a
 lookAheadT = go [] where
   go xs m = lift (runAwaiter m) >>= \case
     Right a -> a <$ mapM_ leftover (reverse xs)
