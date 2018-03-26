@@ -34,8 +34,8 @@ module Data.Drinkery.Tap (
   , tapListT
   , tapListT'
   , retractListT
-  -- * Drinker
-  , drink
+  -- * Sink
+  , consume
   , leftover
   , request
   , smell
@@ -86,9 +86,9 @@ repeatTapM' = repeatTapM
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
 
-drink :: (Monoid r, MonadSink (Tap r s) m) => m s
-drink = receiving $ \t -> unTap t mempty
-{-# INLINE drink #-}
+consume :: (Monoid r, MonadSink (Tap r s) m) => m s
+consume = receiving $ \t -> unTap t mempty
+{-# INLINE consume #-}
 
 leftover :: (Semigroup r, MonadSink (Tap r s) m) => s -> m ()
 leftover s = receiving $ \t -> return ((), consTap s t)
@@ -101,7 +101,7 @@ request r = receiving $ \t -> return ((), orderTap r t)
 -- | Get one element without consuming.
 smell :: (Monoid r, Semigroup r, MonadSink (Tap r s) m) => m s
 smell = do
-  s <- drink
+  s <- consume
   leftover s
   return s
 {-# INLINE smell #-}

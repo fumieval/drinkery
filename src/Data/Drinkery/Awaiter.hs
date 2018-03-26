@@ -87,4 +87,4 @@ lookAheadT :: (Monad m, MonadTrans t, Monoid r, Semigroup r, MonadSink (Tap r s)
 lookAheadT = go [] where
   go xs m = lift (runAwaiter m) >>= \case
     Right a -> a <$ mapM_ leftover (reverse xs)
-    Left f -> drink >>= \s -> go (s : xs) (f s)
+    Left f -> consume >>= \s -> go (s : xs) (f s)

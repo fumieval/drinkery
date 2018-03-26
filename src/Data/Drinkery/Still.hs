@@ -66,7 +66,7 @@ take = go where
 
 drop :: Monad m => Int -> Pipe a a m
 drop n = makeTap $ do
-  replicateM_ n drink
+  replicateM_ n consume
   return echo
 {-# INLINE drop #-}
 
@@ -87,9 +87,9 @@ dropWhile p = go where
 -- | Consume all the content of a 'Tap' and return the elements as a list.
 drinkUp :: (Monoid r, Semigroup r, MonadSink (Tap r (Maybe s)) m) => m [s]
 drinkUp = go id where
-  go f = drink >>= maybe (pure $ f []) (\x -> go $ f . (x:))
+  go f = consume >>= maybe (pure $ f []) (\x -> go $ f . (x:))
 {-# INLINE drinkUp #-}
 
 sip :: (Monoid r, Alternative m, MonadSink (Tap r (Maybe s)) m) => m s
-sip = drink >>= maybe empty pure
+sip = consume >>= maybe empty pure
 {-# INLINE sip #-}
