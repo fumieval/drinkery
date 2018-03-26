@@ -38,7 +38,7 @@ module Data.Drinkery.Tap (
   , consume
   , leftover
   , request
-  , smell
+  , prefetch
   -- * End of stream
   , eof
 ) where
@@ -99,12 +99,12 @@ request r = receiving $ \t -> return ((), orderTap r t)
 {-# INLINE request #-}
 
 -- | Get one element without consuming.
-smell :: (Monoid r, Semigroup r, MonadSink (Tap r s) m) => m s
-smell = do
+prefetch :: (Monoid r, Semigroup r, MonadSink (Tap r s) m) => m s
+prefetch = do
   s <- consume
   leftover s
   return s
-{-# INLINE smell #-}
+{-# INLINE prefetch #-}
 
 -- | ('<*>') zips two taps.
 newtype Joint r m s = Joint { unJoint :: Tap r s m }
