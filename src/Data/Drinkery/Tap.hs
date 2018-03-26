@@ -19,21 +19,21 @@ module Data.Drinkery.Tap (
   , repeatTapM
   , repeatTapM'
   , Joint(..)
-  -- * Barman
-  , Barman(..)
+  -- * Producer
+  , Producer(..)
   , yield
   , accept
   , inexhaustible
-  , runBarman
-  , runBarman'
+  , tapProducer
+  , tapProducer'
   , pour
-  -- * Sommelier
-  , Sommelier(..)
+  -- * ListT
+  , ListT(..)
   , taste
   , inquire
-  , runSommelier
-  , runSommelier'
-  , retractSommelier
+  , tapListT
+  , tapListT'
+  , retractListT
   -- * Drinker
   , drink
   , leftover
@@ -124,114 +124,114 @@ instance Applicative m => Applicative (Joint r m) where
   {-# INLINE (<*>) #-}
 
 -- | Monadic producer
-newtype Barman r s m a = Barman { unBarman :: (a -> Tap r s m) -> Tap r s m }
+newtype Producer r s m a = Producer { unProducer :: (a -> Tap r s m) -> Tap r s m }
 
-instance Functor (Barman r s m) where
-  fmap f (Barman m) = Barman $ \cont -> m (cont . f)
+instance Functor (Producer r s m) where
+  fmap f (Producer m) = Producer $ \cont -> m (cont . f)
 
-instance Applicative (Barman r s m) where
+instance Applicative (Producer r s m) where
   pure = return
-  Barman m <*> Barman k = Barman $ \cont -> m $ \f -> k $ cont . f
+  Producer m <*> Producer k = Producer $ \cont -> m $ \f -> k $ cont . f
 
-instance Monad (Barman r s m) where
-  return a = Barman ($ a)
-  Barman m >>= k = Barman $ \cont -> m $ \a -> unBarman (k a) cont
+instance Monad (Producer r s m) where
+  return a = Producer ($ a)
+  Producer m >>= k = Producer $ \cont -> m $ \a -> unProducer (k a) cont
 
-instance MonadTrans (Barman r s) where
-  lift m = Barman $ \k -> Tap $ \rs -> m >>= \a -> unTap (k a) rs
+instance MonadTrans (Producer r s) where
+  lift m = Producer $ \k -> Tap $ \rs -> m >>= \a -> unTap (k a) rs
 
-instance MonadIO m => MonadIO (Barman r s m) where
-  liftIO m = Barman $ \k -> Tap $ \rs -> liftIO m >>= \a -> unTap (k a) rs
+instance MonadIO m => MonadIO (Producer r s m) where
+  liftIO m = Producer $ \k -> Tap $ \rs -> liftIO m >>= \a -> unTap (k a) rs
 
-instance MonadDrunk t m => MonadDrunk t (Barman p q m) where
+instance MonadDrunk t m => MonadDrunk t (Producer p q m) where
   drinking f = lift (drinking f)
 
 -- | Produce one element. Orders are put off.
-pour :: (Semigroup r, Applicative m) => s -> Barman r s m ()
-pour s = Barman $ \cont -> consTap s (cont ())
+pour :: (Semigroup r, Applicative m) => s -> Producer r s m ()
+pour s = Producer $ \cont -> consTap s (cont ())
 
 -- | Accept orders and clear the queue.
-accept :: Monoid r => Barman r s m r
-accept = Barman $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
+accept :: Monoid r => Producer r s m r
+accept = Producer $ \cont -> Tap $ \rs -> unTap (cont rs) mempty
 
--- | Create a infinite 'Tap' from a 'Barman'.
+-- | Create a infinite 'Tap' from a 'Producer'.
 --
--- @inexhaustible :: 'Barman' r s ('Drinker' tap m) x -> 'Distiller' tap m r s@
+-- @inexhaustible :: 'Producer' r s ('Drinker' tap m) x -> 'Distiller' tap m r s@
 --
-inexhaustible :: Barman r s m x -> Tap r s m
+inexhaustible :: Producer r s m x -> Tap r s m
 inexhaustible t = go where
-  go = unBarman t $ const go
+  go = unProducer t $ const go
 {-# INLINE inexhaustible #-}
 
 -- | Backtracking producer a.k.a. "ListT done right".
-newtype Sommelier r m s = Sommelier
-  { unSommelier :: forall x. (s -> Tap r x m -> Tap r x m) -> Tap r x m -> Tap r x m }
+newtype ListT r m s = ListT
+  { unListT :: forall x. (s -> Tap r x m -> Tap r x m) -> Tap r x m -> Tap r x m }
 
-instance Functor (Sommelier r m) where
-  fmap f m = Sommelier $ \c e -> unSommelier m (c . f) e
+instance Functor (ListT r m) where
+  fmap f m = ListT $ \c e -> unListT m (c . f) e
 
-instance Applicative (Sommelier r m) where
+instance Applicative (ListT r m) where
   pure = return
   (<*>) = ap
 
-instance Monad (Sommelier r m) where
-  return s = Sommelier $ \c e -> c s e
-  m >>= k = Sommelier $ \c e -> unSommelier m (\s -> unSommelier (k s) c) e
+instance Monad (ListT r m) where
+  return s = ListT $ \c e -> c s e
+  m >>= k = ListT $ \c e -> unListT m (\s -> unListT (k s) c) e
 
-instance Alternative (Sommelier r m) where
-  empty = Sommelier $ \_ e -> e
-  a <|> b = Sommelier $ \c e -> unSommelier a c (unSommelier b c e)
+instance Alternative (ListT r m) where
+  empty = ListT $ \_ e -> e
+  a <|> b = ListT $ \c e -> unListT a c (unListT b c e)
 
-instance MonadPlus (Sommelier r m) where
+instance MonadPlus (ListT r m) where
   mzero = empty
   mplus = (<|>)
 
-instance MonadTrans (Sommelier r) where
-  lift m = Sommelier $ \c e -> Tap $ \rs -> m >>= \a -> unTap (c a e) rs
+instance MonadTrans (ListT r) where
+  lift m = ListT $ \c e -> Tap $ \rs -> m >>= \a -> unTap (c a e) rs
 
-instance MonadIO m => MonadIO (Sommelier r m) where
-  liftIO m = Sommelier $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
+instance MonadIO m => MonadIO (ListT r m) where
+  liftIO m = ListT $ \c e -> Tap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
-instance MonadDrunk t m => MonadDrunk t (Sommelier p m) where
+instance MonadDrunk t m => MonadDrunk t (ListT p m) where
   drinking f = lift (drinking f)
 
 -- | Take all the elements in a 'Foldable' container.
-taste :: Foldable f => f s -> Sommelier r m s
-taste xs = Sommelier $ \c e -> foldr c e xs
+taste :: Foldable f => f s -> ListT r m s
+taste xs = ListT $ \c e -> foldr c e xs
 
 -- | Get a request.
-inquire :: Monoid r => Sommelier r m r
-inquire = Sommelier $ \c e -> Tap $ \rs -> unTap (c rs e) mempty
+inquire :: Monoid r => ListT r m r
+inquire = ListT $ \c e -> Tap $ \rs -> unTap (c rs e) mempty
 
 -- | End of stream
 eof :: (Applicative m, Alternative f) => Tap r (f a) m
 eof = repeatTap empty
 
--- | Run a 'Barman' action and terminate the stream with 'eof'.
-runBarman :: (Monoid r, Applicative m, Alternative f) => Barman r (f s) m a -> Tap r (f s) m
-runBarman m = unBarman m (const eof)
-{-# INLINE runBarman #-}
+-- | Run a 'Producer' action and terminate the stream with 'eof'.
+tapProducer :: (Monoid r, Applicative m, Alternative f) => Producer r (f s) m a -> Tap r (f s) m
+tapProducer m = unProducer m (const eof)
+{-# INLINE tapProducer #-}
 
--- | Specialised 'runBarman'
-runBarman' :: (Applicative m, Alternative f) => Barman () (f s) m a -> Tap () (f s) m
-runBarman' = runBarman
-{-# INLINE runBarman' #-}
+-- | Specialised 'runProducer'
+tapProducer' :: (Applicative m, Alternative f) => Producer () (f s) m a -> Tap () (f s) m
+tapProducer' = tapProducer
+{-# INLINE tapProducer' #-}
 
--- | Run 'Sommelier' and terminate the stream with 'eof'.
-runSommelier :: (Semigroup r, Applicative m, Alternative f) => Sommelier r m s -> Tap r (f s) m
-runSommelier m = unSommelier m (consTap . pure) eof
-{-# INLINE runSommelier #-}
+-- | Run 'ListT' and terminate the stream with 'eof'.
+tapListT :: (Semigroup r, Applicative m, Alternative f) => ListT r m s -> Tap r (f s) m
+tapListT m = unListT m (consTap . pure) eof
+{-# INLINE tapListT #-}
 
--- | Specialised 'runSommelier'
-runSommelier' :: (Applicative m, Alternative f) => Sommelier () m s -> Tap () (f s) m
-runSommelier' = runSommelier
-{-# INLINE runSommelier' #-}
+-- | Specialised 'runListT'
+tapListT' :: (Applicative m, Alternative f) => ListT () m s -> Tap () (f s) m
+tapListT' = tapListT
+{-# INLINE tapListT' #-}
 
-retractSommelier :: Monad m => Sommelier () m s -> m ()
-retractSommelier (Sommelier f) = go $ f (const $ consTap True) (repeatTap False) where
+retractListT :: Monad m => ListT () m s -> m ()
+retractListT (ListT f) = go $ f (const $ consTap True) (repeatTap False) where
   go m = unTap m () >>= \(a, k) -> when a (go k)
-{-# INLINE retractSommelier #-}
+{-# INLINE retractListT #-}
 
-yield :: (Semigroup r, Applicative f, Applicative m) => s -> Barman r (f s) m ()
+yield :: (Semigroup r, Applicative f, Applicative m) => s -> Producer r (f s) m ()
 yield = pour . pure
 {-# INLINE pour #-}

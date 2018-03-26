@@ -23,10 +23,10 @@ scan f b0 = consTap (Just b0) $ go b0 where
 {-# INLINE scan #-}
 
 reserve :: (Monoid r, MonadDrunk (Cask r s) m)
-    => (s -> Barman r (Maybe t) m ()) -> Barman r (Maybe t) m ()
-reserve k = Barman $ \cont -> Tap $ \r -> drinking (\t -> unTap t r) >>= \case
+    => (s -> Producer r (Maybe t) m ()) -> Producer r (Maybe t) m ()
+reserve k = Producer $ \cont -> Tap $ \r -> drinking (\t -> unTap t r) >>= \case
   Nothing -> return (Nothing, cont ())
-  Just s -> unTap (unBarman (k s) cont) mempty
+  Just s -> unTap (unProducer (k s) cont) mempty
 
 map :: (Functor t, Monad m) => (a -> b) -> Distiller (Tap r (t a)) r (t b) m
 map = mapping . fmap

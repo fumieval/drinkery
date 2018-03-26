@@ -5,22 +5,22 @@ offers a simple interface, it also tries to be as expressive as possible.
 
 ## Producers
 
-drinkery supports three types of producers: `Barman`, `Sommelier`, and `Tap`.
+drinkery supports three types of producers: `Producer`, `ListT`, and `Tap`.
 
-`Barman r s` is a monad transformer to produce a stream of type `s`. It is good
+`Producer r s` is a monad transformer to produce a stream of type `s`. It is good
 at interactively serving values.
-`yield :: s -> Barman r s m a` is the primary action.
+`yield :: s -> Producer r s m a` is the primary action.
 A barman can also accept requests from the downstream using `accept`.
 
-`Sommelier r` is a list-like backtracking monad (also known as ListT done right).
+`ListT r` is a list-like backtracking monad (also known as ListT done right).
 It is useful for sampling elements of containers with effects.
-`taste :: Foldable f => f s -> Sommelier r m s` samples elements in any `Foldable`
+`taste :: Foldable f => f s -> ListT r m s` samples elements in any `Foldable`
 container. `inquire` to interact with the downstream.
 
 `Tap` is an endless producer. This can be connected to a 'Patron' or a 'Distiller'.
 
-`Barman` and `Sommelier` are converted to `Tap`
-by `runBarman` and `runSommelier` respectively.
+`Producer` and `ListT` are converted to `Tap`
+by `runProducer` and `runListT` respectively.
 
 ## Consumer
 
