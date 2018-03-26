@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a02d5f24aaf654476fe20d6324eebcaa59bf282ddc4946c5b15c83fbdb019481
+-- hash: 1c22d217d843dc58c558799e32ba08863a3c4f969495182fad81d7c607df0c06
 
 name:           drinkery
 version:        0.2.2
@@ -41,7 +41,7 @@ library
       Data.Drinkery.Combinators
       Data.Drinkery.Distiller
       Data.Drinkery.IO
-      Data.Drinkery.Patron
+      Data.Drinkery.Awaiter
       Data.Drinkery.Still
       Data.Drinkery.Tap
   other-modules:

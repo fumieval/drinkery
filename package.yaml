@@ -33,7 +33,7 @@ library:
     - Data.Drinkery.Combinators
     - Data.Drinkery.Distiller
     - Data.Drinkery.IO
-    - Data.Drinkery.Patron
+    - Data.Drinkery.Awaiter
     - Data.Drinkery.Still
     - Data.Drinkery.Tap
   ghc-options: -Wall
