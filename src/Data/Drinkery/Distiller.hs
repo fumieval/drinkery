@@ -69,9 +69,8 @@ d ++& b = unSink b d $ \a t -> pure (t, a)
 -- * @$@ Right operand is a distiller.
 --
 (++$) :: (Applicative m) => tap m -> Distiller tap r s m -> Tap r s m
-(++$) = go where -- looks strange, but seems to perform better (GHC 8.2.2)
-  go t d = Tap $ \r -> unSink (unTap d r) t
-    $ \(s, d') t' -> pure (s, go t' d')
+t0 ++$ Tap ds0 u = Tap (t0, ds0) $ \r (t, ds) -> unSink (u r ds) t
+  $ \r t' -> pure $ (,) t' <$> r
 {-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.
@@ -95,22 +94,23 @@ echo = mapping id
 {-# INLINE echo #-}
 
 mapping :: (Monad m) => (a -> b) -> Distiller (Tap r a) r b m
-mapping f = go where
-  go = reservingTap $ \a -> pure (f a, go)
+mapping f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> do
+  Trickle a t' <- k r t
+  cont (Trickle (f a) ()) (Tap t' k)
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
 reservingTap :: Monad m => (a -> Sink (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
-reservingTap k = Tap $ \r -> Sink $ \t cont -> do
+reservingTap k = wrapTap $ \r -> Sink $ \t cont -> do
   (a, t') <- unTap t r
   unSink (k a) t' cont
 {-# INLINE reservingTap #-}
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
-traversing f = go where
-  go = reservingTap $ \a -> do
-    b <- lift $ f a
-    return (b, go)
+traversing f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> do
+  Trickle a t' <- k r t
+  b <- f a
+  cont (Trickle b ()) (Tap t' k)
 {-# INLINE traversing #-}
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
@@ -130,7 +130,7 @@ scanning f b0 = go b0 where
 -- | Create a request-preserving distiller from a drinker action.
 repeating :: (MonadSink (Tap r a) m, Semigroup r) => m b -> Tap r b m
 repeating m = go where
-  go = Tap $ \r -> do
+  go = wrapTap $ \r -> do
     request r
     a <- m
     return (a, go)

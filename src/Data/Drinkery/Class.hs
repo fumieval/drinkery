@@ -52,6 +52,7 @@ instance Applicative (Sink s m) where
   Sink mf <*> Sink mx = Sink
     $ \s k -> mf s $ \f s' -> mx s' $ k . f
   m *> k = m >>= \_ -> k
+  {-# INLINE (*>) #-}
 
 instance Monad (Sink s m) where
   return = pure

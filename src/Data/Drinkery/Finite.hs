@@ -24,7 +24,7 @@ scan f b0 = consTap (Just b0) $ go b0 where
 
 reserve :: (Monoid r, MonadSink (Source r s) m)
     => (s -> Producer r (Maybe t) m ()) -> Producer r (Maybe t) m ()
-reserve k = Producer $ \cont -> Tap $ \r -> receiving (\t -> unTap t r) >>= \case
+reserve k = Producer $ \cont -> wrapTap $ \r -> receiving (\t -> unTap t r) >>= \case
   Nothing -> return (Nothing, cont ())
   Just s -> unTap (unProducer (k s) cont) mempty
 
