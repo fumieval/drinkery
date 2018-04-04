@@ -5,7 +5,7 @@ import Data.List
 import Data.Void
 import Gauge.Main
 import qualified Data.Drinkery as D
-import qualified Data.Drinkery.Still as D
+import qualified Data.Drinkery.Finite as D
 import qualified ListT as L
 import qualified Pipes as P
 import qualified Pipes.Prelude as P
@@ -13,8 +13,8 @@ import qualified Data.Conduit as C
 import qualified Data.Conduit.Combinators as CC
 import qualified Data.Machine as M
 
-drainD :: Monad m => D.Drinker (D.Tap () (Maybe a)) m ()
-drainD = D.drainFrom D.drink
+drainD :: Monad m => D.Sink (D.Tap () (Maybe a)) m ()
+drainD = D.drainFrom D.consume
 
 sourceAlt :: Monad m => ([Int] -> m Int) -> m Int
 sourceAlt k = do
@@ -28,8 +28,8 @@ sourceSeq :: Monad m => (Int -> m ()) -> m ()
 sourceSeq k = forM_ [1..50] $ \a -> forM_ [1..a] $ \b -> forM_ [1..b] $ \c -> k $! a + b + c
 {-# INLINE sourceSeq #-}
 
-sourceD :: Monad m => D.Cask () Int m
-sourceD = D.runSommelier (sourceAlt D.taste)
+sourceD :: Monad m => D.Source () Int m
+sourceD = D.tapListT (sourceAlt D.sample)
 {-# INLINE sourceD #-}
 
 sourceP :: Monad m => P.Producer Int m ()
@@ -48,7 +48,7 @@ main = defaultMain
   [ bgroup "drain"
       [ bench "drinkery/Barman" $ whnfIO
           $ apply (D.+& drainD)
-          $ D.runBarman (sourceSeq D.yield)
+          $ D.tapProducer (sourceSeq D.yield)
       , bench "drinkery/Sommelier" $ whnfIO
           $ apply (D.+& drainD) sourceD
       , bench "pipes/Producer" $ whnfIO
@@ -71,9 +71,9 @@ main = defaultMain
           $ M.scan (+) 0
       ]
    , bgroup "scan-chain"
-      [ bench "drinkery/++$" $ whnfIO $ apply (\h -> D.runBarman (sourceSeq D.yield) D.+& h D.$& drainD)
+      [ bench "drinkery/++$" $ whnfIO $ apply (\h -> D.tapProducer (sourceSeq D.yield) D.+& h D.$& drainD)
           $ D.scan (+) 0 D.++$ D.scan (+) 0
-      , bench "drinkery/$&" $ whnfIO $ apply (\(h, h') -> D.runBarman (sourceSeq D.yield) D.+& h D.$& h' D.$& drainD)
+      , bench "drinkery/$&" $ whnfIO $ apply (\(h, h') -> D.tapProducer (sourceSeq D.yield) D.+& h D.$& h' D.$& drainD)
           (D.scan (+) 0, D.scan (+) 0)
       , bench "pipes" $ whnfIO $ apply (\p -> P.runEffect $ P.for (sourceP P.>-> p) P.discard)
           $ P.scan (+) 0 id P.>-> P.scan (+) 0 id
