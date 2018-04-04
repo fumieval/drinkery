@@ -37,19 +37,3 @@ library:
     - Data.Drinkery.Finite
     - Data.Drinkery.Tap
   ghc-options: -Wall
-
-benchmarks:
-  benchmark:
-    main:           benchmark.hs
-    ghc-options:    -O2
-    source-dirs: benchmarks
-    dependencies:
-      - base
-      - drinkery
-      - gauge
-      - pipes
-      - machines
-      - conduit
-      - conduit-combinators
-      - list-t
-      - ListT

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f259ca772e145ebb7fecfea301b423b911d8d26903d9476e3e669d13bf3966a2
+-- hash: 8c6f05381b2f5eba2a29b87397f15a1e5a2ad86c86725e5b8360e6d81417581b
 
 name:           drinkery
 version:        0.3
@@ -44,29 +44,6 @@ library
       Data.Drinkery.Awaiter
       Data.Drinkery.Finite
       Data.Drinkery.Tap
-  other-modules:
-      Paths_drinkery
-  default-language: Haskell2010
-
-benchmark benchmark
-  type: exitcode-stdio-1.0
-  main-is: benchmark.hs
-  hs-source-dirs:
-      benchmarks
-  ghc-options: -O2
-  build-depends:
-      ListT
-    , base
-    , conduit
-    , conduit-combinators
-    , drinkery
-    , exceptions
-    , gauge
-    , list-t
-    , machines
-    , mtl
-    , pipes
-    , transformers
   other-modules:
       Paths_drinkery
   default-language: Haskell2010
