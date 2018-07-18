@@ -49,6 +49,8 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Control.Monad.Reader.Class
+import Control.Monad.State.Class
 import Data.Semigroup
 import Data.Drinkery.Class
 
@@ -157,6 +159,15 @@ instance MonadIO m => MonadIO (Producer r s m) where
 instance MonadSink t m => MonadSink t (Producer p q m) where
   receiving f = lift (receiving f)
 
+instance MonadReader r m => MonadReader r (Producer p q m) where
+  ask = lift ask
+  local f (Producer m) = Producer $ \k -> transTap (local f) (m k)
+
+instance MonadState s m => MonadState s (Producer p q m) where
+  get = lift get
+  put = lift . put
+  state = lift . state
+
 -- | Produce one element. Orders are put off.
 produce :: (Semigroup r, Applicative m) => s -> Producer r s m ()
 produce s = Producer $ \cont -> consTap s (cont ())
@@ -205,6 +216,15 @@ instance MonadIO m => MonadIO (ListT r m) where
 
 instance MonadSink t m => MonadSink t (ListT p m) where
   receiving f = lift (receiving f)
+
+instance MonadReader r m => MonadReader r (ListT p m) where
+  ask = lift ask
+  local f (ListT m) = ListT $ \c e -> transTap (local f) (m c e)
+
+instance MonadState s m => MonadState s (ListT p m) where
+  get = lift get
+  put = lift . put
+  state = lift . state
 
 -- | Take all the elements in a 'Foldable' container.
 sample :: Foldable f => f s -> ListT r m s
