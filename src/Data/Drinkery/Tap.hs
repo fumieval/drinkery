@@ -15,6 +15,7 @@ module Data.Drinkery.Tap (
   , consTap
   , orderTap
   , makeTap
+  , transTap
   , repeatTap
   , repeatTapM
   , repeatTapM'
@@ -64,6 +65,11 @@ consTap s t = Tap $ \r -> pure (s, Tap $ unTap t . (<>) r)
 orderTap :: (Semigroup r) => r -> Tap r s m -> Tap r s m
 orderTap r t = Tap $ \r' -> unTap t $! r <> r'
 {-# INLINE orderTap #-}
+
+transTap :: Functor n => (forall x. m x -> n x) -> Tap r s m -> Tap r s n
+transTap t = go where
+  go (Tap f) = Tap $ \r -> fmap go <$> t (f r)
+{-# INLINE transTap #-}
 
 -- | Involve an action.
 makeTap :: (Monad m) => m (Tap r s m) -> Tap r s m
