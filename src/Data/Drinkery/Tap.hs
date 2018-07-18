@@ -18,6 +18,7 @@ module Data.Drinkery.Tap (
   , repeatTap
   , repeatTapM
   , repeatTapM'
+  , unfoldrTapM
   , Joint(..)
   -- * Producer
   , Producer(..)
@@ -82,6 +83,10 @@ repeatTapM m = go where
 repeatTapM' :: Applicative m => m s -> Tap () s m
 repeatTapM' = repeatTapM
 {-# INLINE repeatTapM' #-}
+
+unfoldrTapM :: Applicative m => (r -> s -> m (a, s)) -> s -> Tap r a m
+unfoldrTapM f = go where
+  go s = Tap $ \r -> fmap go <$> f r s
 
 instance CloseRequest r => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
