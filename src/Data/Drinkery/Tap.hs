@@ -239,22 +239,22 @@ eof :: (Applicative m, Alternative f) => Tap r (f a) m
 eof = repeatTap empty
 
 -- | Run a 'Producer' action and terminate the stream with 'eof'.
-tapProducer :: (Monoid r, Applicative m, Alternative f) => Producer r (f s) m a -> Tap r (f s) m
+tapProducer :: (Monoid r, Applicative m) => Producer r (Maybe s) m a -> Tap r (Maybe s) m
 tapProducer m = unProducer m (const eof)
 {-# INLINE tapProducer #-}
 
 -- | Specialised 'runProducer'
-tapProducer' :: (Applicative m, Alternative f) => Producer () (f s) m a -> Tap () (f s) m
+tapProducer' :: (Applicative m) => Producer () (Maybe s) m a -> Tap () (Maybe s) m
 tapProducer' = tapProducer
 {-# INLINE tapProducer' #-}
 
 -- | Run 'ListT' and terminate the stream with 'eof'.
-tapListT :: (Semigroup r, Applicative m, Alternative f) => ListT r m s -> Tap r (f s) m
+tapListT :: (Semigroup r, Applicative m) => ListT r m s -> Tap r (Maybe s) m
 tapListT m = unListT m (consTap . pure) eof
 {-# INLINE tapListT #-}
 
 -- | Specialised 'runListT'
-tapListT' :: (Applicative m, Alternative f) => ListT () m s -> Tap () (f s) m
+tapListT' :: (Applicative m) => ListT () m s -> Tap () (Maybe s) m
 tapListT' = tapListT
 {-# INLINE tapListT' #-}
 
