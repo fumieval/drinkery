@@ -28,10 +28,10 @@ module Data.Drinkery.Distiller
   ) where
 
 import Control.Monad.Catch (onException, MonadCatch)
-import Control.Monad.Trans
 import Data.Drinkery.Tap
 import Data.Drinkery.Class
 import Data.Semigroup
+import Data.Bifunctor
 
 -- | @Distiller tap m r s@ is a stream transducer which has four parameters:
 --
@@ -70,7 +70,7 @@ d ++& b = unSink b d $ \a t -> pure (t, a)
 --
 (++$) :: (Applicative m) => tap m -> Distiller tap r s m -> Tap r s m
 t0 ++$ Tap ds0 u = Tap (t0, ds0) $ \r (t, ds) -> unSink (u r ds) t
-  $ \r t' -> pure $ (,) t' <$> r
+  $ \tr t' -> pure $ bimap (t' ++$) ((,) t') tr
 {-# INLINE (++$) #-}
 
 -- | Feed a tap to a drinker and close the used tap.
@@ -94,33 +94,45 @@ echo = mapping id
 {-# INLINE echo #-}
 
 mapping :: (Monad m) => (a -> b) -> Distiller (Tap r a) r b m
-mapping f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> do
-  Trickle a t' <- k r t
-  cont (Trickle (f a) ()) (Tap t' k)
+mapping f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> k r t >>= \case
+  Trickle a t' -> cont (Trickle (f a) ()) (Tap t' k)
+  Replenish a t' -> cont (Trickle (f a) ()) t'
+  Trickle0 t' -> cont (Trickle0 ()) (Tap t' k)
+  Replenish0 t' -> cont (Trickle0 ()) t'
 {-# INLINE mapping #-}
 
 -- | Get one element preserving a request
-reservingTap :: Monad m => (a -> Sink (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
+reservingTap :: (Monoid r, Monad m) => (a -> Sink (Tap r a) m (b, Distiller (Tap r a) r b m)) -> Distiller (Tap r a) r b m
 reservingTap k = wrapTap $ \r -> Sink $ \t cont -> do
   (a, t') <- unTap t r
   unSink (k a) t' cont
 {-# INLINE reservingTap #-}
 
 traversing :: (Monad m) => (a -> m b) -> Distiller (Tap r a) r b m
-traversing f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> do
-  Trickle a t' <- k r t
-  b <- f a
-  cont (Trickle b ()) (Tap t' k)
+traversing f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> k r t >>= \case
+  Trickle a t' -> do
+    b <- f a
+    cont (Trickle b ()) (Tap t' k)
+  Replenish a t' -> do
+    b <- f a
+    cont (Trickle b ()) t'
+  Trickle0 t' -> cont (Trickle0 ()) (Tap t' k)
+  Replenish0 t' -> cont (Trickle0 ()) t'
 {-# INLINE traversing #-}
 
 filtering :: (Monoid r, Monad m) => (a -> Bool) -> Distiller (Tap r a) r a m
-filtering f = go where
-  go = reservingTap $ \a -> if f a
-    then return (a, go)
-    else unTap go mempty
+filtering f = Tap () $ \r _ -> Sink $ \(Tap t k) cont -> k r t >>= \case
+  Trickle a t'
+    | f a -> cont (Trickle a ()) (Tap t' k)
+    | otherwise -> cont (Trickle0 ()) (Tap t' k)
+  Replenish a t'
+    | f a -> cont (Trickle a ()) t'
+    | otherwise -> cont (Trickle0 ()) t'
+  Trickle0 t' -> cont (Trickle0 ()) (Tap t' k)
+  Replenish0 t' -> cont (Trickle0 ()) t'
 {-# INLINE filtering #-}
 
-scanning :: Monad m => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
+scanning :: (Monoid r, Monad m) => (b -> a -> b) -> b -> Distiller (Tap r a) r b m
 scanning f b0 = go b0 where
   go b = reservingTap $ \a -> do
     let !b' = f b a

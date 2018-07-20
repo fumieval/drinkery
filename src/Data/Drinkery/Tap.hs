@@ -56,35 +56,37 @@ import Control.Monad.Reader.Class
 import Control.Monad.State.Class
 import Data.Semigroup
 import Data.Drinkery.Class
+import Data.Bifunctor
 
 -- | @'Tap' m r s@ is a non-monadic, endless producer of @s@. It takes a request
 -- @r@.
-data Tap r s m = forall t. Tap !t (r -> t -> m (Trickle s t))
+data Tap r s m = forall t. Tap !t (r -> t -> m (Trickle s (Tap r s m) t))
 
-data Trickle s t = Trickle s t deriving Functor
 
-mapTrickle :: (a -> b) -> Trickle a t -> Trickle b t
-mapTrickle f (Trickle a t) = Trickle (f a) t
+data Trickle s r t = Trickle s t
+  | Trickle0 t
+  | Replenish s r
+  | Replenish0 r deriving Functor
+
+instance Bifunctor (Trickle s) where
+  bimap _ f (Trickle s t) = Trickle s (f t)
+  bimap _ f (Trickle0 t) = Trickle0 (f t)
+  bimap g _ (Replenish s r) = Replenish s (g r)
+  bimap g _ (Replenish0 r) = Replenish0 (g r)
 
 wrapTap :: Functor m => (r -> m (s, Tap r s m)) -> Tap r s m
-wrapTap f = Tap Nothing $ \r -> \case
-  Nothing -> (\(s, t) -> Trickle s (Just t)) <$> f r
-  Just (Tap t k) -> fmap (\t' -> Just (Tap t' k)) <$> k r t
+wrapTap f = Tap () $ \r _ -> uncurry Replenish <$> f r
 
-unTap :: Monad m => Tap r s m -> r -> m (s, Tap r s m)
+unTap :: (Monad m, Monoid r) => Tap r s m -> r -> m (s, Tap r s m)
 unTap (Tap t0 k) r = k r t0 >>= \case
   Trickle s t' -> pure (s, Tap t' k)
-
-data ConsState r t = ConsInitial
-    | ConsPending !r
-    | ConsCont !t
+  Replenish s t' -> pure (s, t')
+  Trickle0 t' -> unTap (Tap t' k) mempty
+  Replenish0 t' -> unTap t' mempty
 
 -- | Prepend a new element, delaying requests.
 consTap :: (Semigroup r, Applicative m) => s -> Tap r s m -> Tap r s m
-consTap s (Tap t0 k) = Tap ConsInitial $ \r -> \case
-  ConsInitial -> pure $ Trickle s (ConsPending r)
-  ConsPending r0 -> fmap ConsCont <$> k (r <> r0) t0
-  ConsCont t -> fmap ConsCont <$> k r t
+consTap s t = Tap () $ \r _ -> pure $ Replenish s $ orderTap r t
 {-# INLINE consTap #-}
 
 -- | Send a request to a 'Tap'.
@@ -94,11 +96,11 @@ orderTap r (Tap t k) = Tap t $ \r' -> k $! r <> r'
 
 transTap :: Functor n => (forall x. m x -> n x) -> Tap r s m -> Tap r s n
 transTap t = go where
-  go (Tap f) = Tap $ \r -> fmap go <$> t (f r)
+  go (Tap s f) = Tap s $ \r s' -> first go <$> t (f r s')
 {-# INLINE transTap #-}
 
 -- | Involve an action.
-makeTap :: (Monad m) => m (Tap r s m) -> Tap r s m
+makeTap :: (Monoid r, Monad m) => m (Tap r s m) -> Tap r s m
 makeTap m = wrapTap $ \r -> m >>= \t -> unTap t r
 {-# INLINE makeTap #-}
 
@@ -114,11 +116,10 @@ repeatTapM' :: Applicative m => m s -> Tap () s m
 repeatTapM' = repeatTapM
 {-# INLINE repeatTapM' #-}
 
-unfoldrTapM :: Applicative m => (r -> s -> m (a, s)) -> s -> Tap r a m
-unfoldrTapM f = go where
-  go s = Tap $ \r -> fmap go <$> f r s
+unfoldrTapM :: Functor m => (r -> s -> m (a, s)) -> s -> Tap r a m
+unfoldrTapM f s0 = Tap s0 $ \r s -> (\(a, s') -> Trickle a s') <$> f r s
 
-instance CloseRequest r => Closable (Tap r s) where
+instance (Monoid r, CloseRequest r) => Closable (Tap r s) where
   close t = void $ unTap t closeRequest
 
 consume :: (Monoid r, MonadSink (Tap r s) m) => m s
@@ -145,7 +146,11 @@ prefetch = do
 newtype Joint r m s = Joint { unJoint :: Tap r s m }
 
 instance Functor m => Functor (Joint r m) where
-  fmap f (Joint (Tap t0 k)) = Joint $ Tap t0 $ \r t -> mapTrickle f <$> k r t
+  fmap f (Joint (Tap t0 k)) = Joint $ Tap t0 $ \r t -> go <$> k r t where
+    go (Trickle a t) = Trickle (f a) t
+    go (Replenish a t) = Replenish (f a) $ unJoint $ f <$> Joint t
+    go (Trickle0 t) = Trickle0 t
+    go (Replenish0 t) = Replenish0 $ unJoint $ f <$> Joint t
   {-# INLINE fmap #-}
 
 instance Applicative m => Applicative (Joint r m) where
@@ -171,20 +176,20 @@ instance Monad (Producer r s m) where
   return a = Producer ($ a)
   Producer m >>= k = Producer $ \cont -> m $ \a -> unProducer (k a) cont
 
-instance MonadTrans (Producer r s) where
+instance Monoid r => MonadTrans (Producer r s) where
   lift m = Producer $ \k -> wrapTap $ \rs -> m >>= \a -> unTap (k a) rs
 
-instance MonadIO m => MonadIO (Producer r s m) where
+instance (Monoid r, MonadIO m) => MonadIO (Producer r s m) where
   liftIO m = Producer $ \k -> wrapTap $ \rs -> liftIO m >>= \a -> unTap (k a) rs
 
-instance MonadSink t m => MonadSink t (Producer p q m) where
+instance (Monoid p, MonadSink t m) => MonadSink t (Producer p q m) where
   receiving f = lift (receiving f)
 
-instance MonadReader r m => MonadReader r (Producer p q m) where
+instance (Monoid p, MonadReader r m) => MonadReader r (Producer p q m) where
   ask = lift ask
   local f (Producer m) = Producer $ \k -> transTap (local f) (m k)
 
-instance MonadState s m => MonadState s (Producer p q m) where
+instance (Monoid p, MonadState s m) => MonadState s (Producer p q m) where
   get = lift get
   put = lift . put
   state = lift . state
@@ -229,20 +234,20 @@ instance MonadPlus (ListT r m) where
   mzero = empty
   mplus = (<|>)
 
-instance MonadTrans (ListT r) where
+instance Monoid r => MonadTrans (ListT r) where
   lift m = ListT $ \c e -> wrapTap $ \rs -> m >>= \a -> unTap (c a e) rs
 
-instance MonadIO m => MonadIO (ListT r m) where
+instance (Monoid r, MonadIO m) => MonadIO (ListT r m) where
   liftIO m = ListT $ \c e -> wrapTap $ \rs -> liftIO m >>= \a -> unTap (c a e) rs
 
-instance MonadSink t m => MonadSink t (ListT p m) where
+instance (Monoid p, MonadSink t m) => MonadSink t (ListT p m) where
   receiving f = lift (receiving f)
 
-instance MonadReader r m => MonadReader r (ListT p m) where
+instance (Monoid p, MonadReader r m) => MonadReader r (ListT p m) where
   ask = lift ask
   local f (ListT m) = ListT $ \c e -> transTap (local f) (m c e)
 
-instance MonadState s m => MonadState s (ListT p m) where
+instance (Monoid p, MonadState s m) => MonadState s (ListT p m) where
   get = lift get
   put = lift . put
   state = lift . state
