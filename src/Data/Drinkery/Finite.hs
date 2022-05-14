@@ -44,22 +44,22 @@ concatMap f = go where
 {-# INLINE concatMap #-}
 
 filter :: Monad m => (a -> Bool) -> Pipe a a m
-filter = filtering . maybe True
+filter p = filtering (maybe True p)
 {-# INLINE filter #-}
 
 mapAccum :: Monad m => (s -> a -> (s, b)) -> s -> Pipe a b m
-mapAccum f = go where
+mapAccum f x = go x where
   go s = reservingTap $ \case
     Just a -> let (s', b) = f s a in return (Just b, go s')
     Nothing -> return (Nothing, go s)
 {-# INLINE mapAccum #-}
 
 traverse :: (Monad m) => (a -> m b) -> Pipe a b m
-traverse = traversing . Prelude.traverse
+traverse f = traversing (Prelude.traverse f)
 {-# INLINE traverse #-}
 
 take :: Monad m => Int -> Pipe a a m
-take = go where
+take x = go x where
   go 0 = repeatTap Nothing
   go n = reservingTap $ \a -> return (a, go (n - 1))
 {-# INLINE take #-}
